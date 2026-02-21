@@ -16,6 +16,85 @@ Reference: `spec.md` for all function signatures and behavior.
 
 ---
 
+## 0.1. ⚠️ Critical Go-Specific Warnings
+
+**Read this section carefully before starting implementation. These are common pitfalls that will cause subtle bugs if not addressed.**
+
+### Integer Division Trap
+
+Go's `/` operator performs **integer division** when both operands are integers, which will produce incorrect results in floating-point calculations.
+
+**Critical locations:**
+
+- **Adam optimizer learning rate decay**: `lr_t = lr * (1 - step/numSteps)` → WRONG
+  - ✅ Correct: `lr_t = lr * (1.0 - float64(step)/float64(numSteps))`
+- **Training loss averaging**: `loss = (1/n) * sum(losses)` → WRONG
+  - ✅ Correct: `loss = (1.0 / float64(n)) * sum(losses)`
+
+**Test verification**: Create explicit unit tests checking that learning rate decays smoothly (not in discrete jumps) and loss calculation produces non-integer results.
+
+### Pointer Semantics for Gradient Accumulation
+
+All `Value` nodes **must be pointers** (`*Value`), not values. Shared weight nodes (used multiple times in computation graph) must accumulate gradients via `+=` during backward pass.
+
+**Why pointers are required:**
+
+- When a weight appears in multiple operations (e.g., matrix used for multiple inputs), the same `*Value` node is referenced multiple times
+- During backward pass, each reference contributes its gradient: `child.Grad += localGrad * v.Grad`
+- If `Value` were a struct (not pointer), each reference would be a separate copy, and gradients would not accumulate correctly
+
+**Test verification**: Create `TestBackwardSharedNode` that uses the same `Value` twice in computation and verifies gradient is sum of both paths.
+
+### Race Conditions in Backward Pass
+
+The backward pass mutates shared `*Value` nodes (specifically `Grad` field) during gradient accumulation. Without proper testing, this can cause data races.
+
+**Critical test command:**
+
+```bash
+go test --race ./...
+go run --race .
+```
+
+**When to test:**
+
+- After implementing `backward()` method (Section 4)
+- After implementing full GPT forward/backward pass (Section 10)
+- After implementing full training loop (Section 12)
+
+**Expected behavior**: No race detector warnings. All gradient accumulation is sequential in backward pass (no goroutines), so races indicate a bug.
+
+### Softmax Numerical Stability
+
+The `softmax` function requires special handling of `maxVal` to prevent overflow.
+
+**Critical requirement:** `maxVal` must be extracted as a **plain `float64`**, NOT a `*Value` node.
+
+```go
+// ❌ WRONG - creates unnecessary Value node in computation graph
+maxVal := logits[0]
+for _, v := range logits[1:] {
+    if v.Data > maxVal.Data {
+        maxVal = v  // still a *Value
+    }
+}
+
+// ✅ CORRECT - extract as plain float64
+maxVal := logits[0].Data  // float64, not *Value
+for _, v := range logits[1:] {
+    if v.Data > maxVal {
+        maxVal = v.Data
+    }
+}
+// Then: exps[i] = (logits[i] - maxVal).exp()  // subtract float64 from *Value
+```
+
+**Why:** `maxVal` is a numerical stability shift, not part of the differentiable computation. Creating a Value node for it would pollute the computation graph and affect gradients incorrectly.
+
+**Test verification**: `TestSoftmaxNumericalStability` with very large logits (e.g., 1000.0) should not produce NaN or Inf.
+
+---
+
 ## 0.5. Global Configuration & Constants
 
 - [ ] Create stub for all global configuration constants in `microgpt.go`:
