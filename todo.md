@@ -8,11 +8,11 @@ Reference: `spec.md` for all function signatures and behavior.
 
 ## 0. Project Initialization & Setup
 
-- [ ] Create `microgpt_test.go` file with package declaration
+- [x] Create `microgpt_test.go` file with package declaration
 - [ ] Run `go mod tidy` to update go.mod and go.sum
 - [ ] Create `.golangci.yml` configuration file for linting (referenced in CLAUDE.md but missing)
-- [ ] Add file header comment to `microgpt.go` explaining the project origin (port of Karpathy's Python implementation)
-- [ ] Verify `go build .` and `go test ./...` commands work (should fail gracefully with placeholder main)
+- [x] Add file header comment to `microgpt.go` explaining the project origin (port of Karpathy's Python implementation)
+- [x] Verify `go build .` and `go test ./...` commands work (should fail gracefully with placeholder main)
 
 ---
 
@@ -97,14 +97,14 @@ for _, v := range logits[1:] {
 
 ## 0.5. Global Configuration & Constants
 
-- [ ] Create stub for all global configuration constants in `microgpt.go`:
+- [x] Create stub for all global configuration constants in `microgpt.go`:
   - Model architecture: `nLayer=1`, `nEmbd=16`, `blockSize=16`, `nHead=4`, `headDim=4`
   - Training: `numSteps=1000`, `learningRate=0.01`, `beta1=0.85`, `beta2=0.99`, `epsAdam=1e-8`
   - Data: `randomSeed=42`, `dataURL` (names.txt from karpathy/makemore)
   - Inference: `temperature=0.5`, `initStd=0.08`
-- [ ] Create test `TestConfigConstants` (verify all constants have expected values)
-- [ ] Run `go test ./... -v` and confirm test passes (no fail step needed — pure constants always compile and pass)
-- [ ] Add comments explaining each configuration parameter's purpose
+- [x] Create test `TestConfigConstants` (verify all constants have expected values)
+- [x] Run `go test ./... -v` and confirm test passes (no fail step needed — pure constants always compile and pass)
+- [x] Add comments explaining each configuration parameter's purpose
 
 ### 0.5.A. Globals vs Parameters Clarification
 
@@ -128,158 +128,158 @@ for _, v := range logits[1:] {
 
 ## 0.7. Random Number Generator Initialization
 
-- [ ] Create global RNG variable stub: `var rng *rand.Rand`
-- [ ] Create function `initRNG(seed int64)` to initialize seeded RNG
-- [ ] Create test `TestRNGSeeded` (verify same seed produces same sequence)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `initRNG` using `rand.New(rand.NewSource(seed))`
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create global RNG variable stub: `var rng *rand.Rand`
+- [x] Create function `initRNG(seed int64)` to initialize seeded RNG
+- [x] Create test `TestRNGSeeded` (verify same seed produces same sequence)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `initRNG` using `rand.New(rand.NewSource(seed))`
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add test for deterministic behavior across multiple runs with same seed
+- [x] Add test for deterministic behavior across multiple runs with same seed
 
 ---
 
 ## 1. Value Type & Constructor
 
-- [ ] Create `Value` struct stub in `microgpt.go` with fields: `Data`, `Grad`, `children`, `localGrads`
-- [ ] Create test function `TestNewValue` in `microgpt_test.go` (initialize a Value, check fields)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `newValue(data float64, children []*Value, localGrads []float64) *Value`
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `Value` struct stub in `microgpt.go` with fields: `Data`, `Grad`, `children`, `localGrads`
+- [x] Create test function `TestNewValue` in `microgpt_test.go` (initialize a Value, check fields)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `newValue(data float64, children []*Value, localGrads []float64) *Value`
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: zero value, negative data, no children
+- [x] Add edge case tests: zero value, negative data, no children
 
 ---
 
 ## 1.A. Type Definitions
 
-- [ ] Create `StateDict` type definition: `type StateDict map[string][][]*Value`
-- [ ] Add documentation comment explaining StateDict stores all model weight matrices
-- [ ] No test needed (pure type definition)
+- [x] Create `StateDict` type definition: `type StateDict map[string][][]*Value`
+- [x] Add documentation comment explaining StateDict stores all model weight matrices
+- [x] No test needed (pure type definition)
 
 ---
 
 ## 2. Value Arithmetic Operations (add, mul, pow, neg, sub, div)
 
-- [ ] Create function stubs for `add`, `mul`, `pow`, `neg`, `sub`, `div` (all return `*Value`)
-- [ ] Create test functions `TestValueAdd`, `TestValueMul`, `TestValuePow`, `TestValueNeg`, `TestValueSub`, `TestValueDiv` (verify forward computation and children/localGrads storage; verify neg/sub/div delegate to core ops)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement all six functions according to spec.md table
-- [ ] Run `go test ./... -v` and confirm tests pass
+- [x] Create function stubs for `add`, `mul`, `pow`, `neg`, `sub`, `div` (all return `*Value`)
+- [x] Create test functions `TestValueAdd`, `TestValueMul`, `TestValuePow`, `TestValueNeg`, `TestValueSub`, `TestValueDiv` (verify forward computation and children/localGrads storage; verify neg/sub/div delegate to core ops)
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement all six functions according to spec.md table
+- [x] Run `go test ./... -v` and confirm tests pass
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: pow with zero exponent, division by zero handling, chaining operations
+- [x] Add edge case tests: pow with zero exponent, division by zero handling, chaining operations
 
 ---
 
 ## 3. Value Advanced Operations (log, exp, relu)
 
-- [ ] Create method stubs `log()`, `exp()`, `relu()` on `Value` (all return `*Value`)
-- [ ] Create test functions `TestValueLog`, `TestValueExp`, `TestValueRelu` (verify forward & gradients)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement all three methods according to spec.md
-- [ ] Run `go test ./... -v` and confirm tests pass
+- [x] Create method stubs `log()`, `exp()`, `relu()` on `Value` (all return `*Value`)
+- [x] Create test functions `TestValueLog`, `TestValueExp`, `TestValueRelu` (verify forward & gradients)
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement all three methods according to spec.md
+- [x] Run `go test ./... -v` and confirm tests passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: log of negative/zero, exp overflow, relu on boundaries (0, negative, positive)
+- [x] Add edge case tests: log of negative/zero, exp overflow, relu on boundaries (0, negative, positive)
 
 ---
 
 ## 4. Backward Pass (Topological Sort & Backpropagation)
 
-- [ ] Create `backward()` method stub on `Value` (no return)
-- [ ] Create test `TestBackwardSimpleAdd` (add two values, backward, check gradients accumulate correctly)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `backward()` with DFS topological sort and chain-rule gradient accumulation
+- [x] Create `backward()` method stub on `Value` (no return)
+- [x] Create test `TestBackwardSimpleAdd` (add two values, backward, check gradients accumulate correctly)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `backward()` with DFS topological sort and chain-rule gradient accumulation
   - Use `map[*Value]bool` for visited set
   - Build post-order traversal
   - Reverse iterate and propagate gradients
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add critical tests:
+- [x] Add critical tests:
   - `TestBackwardSharedNode` (same value used twice, gradients accumulate)
   - `TestBackwardComputation` (longer computation graph, verify all gradients)
-  - `go test --race ./...` (ensure no data race on shared nodes)
+  - [x] `go test --race ./...` (ensure no data race on shared nodes)
 
 ---
 
 ## 5. Helper Function: linear
 
-- [ ] Create `linear(x []*Value, w [][]*Value) []*Value` stub
-- [ ] Create test `TestLinear` (3x2 matrix, 2-element vector, verify output is 3-element vector with correct dot products)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `linear` as matrix-vector product, no bias
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `linear(x []*Value, w [][]*Value) []*Value` stub
+- [x] Create test `TestLinear` (3x2 matrix, 2-element vector, verify output is 3-element vector with correct dot products)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `linear` as matrix-vector product, no bias
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: 1x1 matrix, all-zeros vector, all-zeros matrix, large matrix
+- [x] Add edge case tests: 1x1 matrix, all-zeros vector, all-zeros matrix, large matrix
 
 ---
 
 ## 6. Helper Function: softmax
 
-- [ ] Create `softmax(logits []*Value) []*Value` stub
-- [ ] Create test `TestSoftmax` (3 logits, verify output sums to ~1, largest logit has largest probability)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `softmax` with numeric stability (extract `maxVal` as plain float, don't create Value node)
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `softmax(logits []*Value) []*Value` stub
+- [x] Create test `TestSoftmax` (3 logits, verify output sums to ~1, largest logit has largest probability)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `softmax` with numeric stability (extract `maxVal` as plain float, don't create Value node)
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add critical tests:
+- [x] Add critical tests:
   - `TestSoftmaxNumericalStability` (very large logits, should not overflow/NaN)
-  - `TestSoftmaxBackward` (backward through softmax, verify gradient flow correct)
+  - [ ] `TestSoftmaxBackward` (backward through softmax, verify gradient flow correct)
 
 ---
 
 ## 7. Helper Function: rmsnorm
 
-- [ ] Create `rmsnorm(x []*Value) []*Value` stub
-- [ ] Create test `TestRMSNorm` (5-element input, verify output has normalized RMS)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `rmsnorm` with epsilon 1e-5, no learnable scale parameter
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `rmsnorm(x []*Value) []*Value` stub
+- [x] Create test `TestRMSNorm` (5-element input, verify output has normalized RMS)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `rmsnorm` with epsilon 1e-5, no learnable scale parameter
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: all-zeros input, single element, very large/small values
+- [x] Add edge case tests: all-zeros input, single element, very large/small values
 
 ---
 
 ## 8. Dataset Loading & Tokenization
 
-- [ ] Create functions: `downloadDataset(url, filename string) error`, `loadDocs(filename string) ([]string, error)`, `buildVocab(docs []string) ([]rune, int, int)`
+- [x] Create functions: `downloadDataset(url, filename string) error`, `loadDocs(filename string) ([]string, error)`, `buildVocab(docs []string) ([]rune, int, int)`
 - [ ] Create test `TestDownloadDataset` (mock HTTP or use real URL, verify file exists)
 - [ ] Create test `TestLoadDocs` (create temp file, verify parsing and filtering)
-- [ ] Create test `TestBuildVocab` (sample input, verify unique chars, BOS value, vocab size)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement all three functions (download, parse lines, build sorted unique chars)
-- [ ] Run `go test ./... -v` and confirm tests pass
+- [x] Create test `TestBuildVocab` (sample input, verify unique chars, BOS value, vocab size)
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement all three functions (download, parse lines, build sorted unique chars)
+- [x] Run `go test ./... -v` and confirm tests pass
 - [ ] Run `golangci-lint run --fix` and fix lint errors
 - [ ] Add edge case tests: empty file, file with duplicates, no internet (download fallback)
 
 ### 8.A. Shuffle Documents
 
-- [ ] Create `shuffleDocs(docs []string)` function stub (in-place shuffle using global RNG)
-- [ ] Create test `TestShuffleDocs` (verify order changes, all elements preserved)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `shuffleDocs` using `rng.Shuffle` from Go stdlib
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `shuffleDocs(docs []string)` function stub (in-place shuffle using global RNG)
+- [x] Create test `TestShuffleDocs` (verify order changes, all elements preserved)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `shuffleDocs` using `rng.Shuffle` from Go stdlib
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add test verifying shuffle is deterministic with same seed
+- [x] Add test verifying shuffle is deterministic with same seed
 
 ### 8.B. Encode Function
 
-- [ ] Create `encode(doc string, uchars []rune) []int` function stub
-- [ ] Create test `TestEncode` (encode "abc" with known vocab, verify token IDs)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `encode` by finding index of each character in `uchars`
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `encode(doc string, uchars []rune) []int` function stub
+- [x] Create test `TestEncode` (encode "abc" with known vocab, verify token IDs)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `encode` by finding index of each character in `uchars`
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: empty string, characters not in vocab (should panic or error)
+- [x] Add edge case tests: empty string, characters not in vocab (should panic or error)
 
 ### 8.C. Decode Function
 
-- [ ] Create `decode(tokens []int, uchars []rune) string` function stub (skip BOS tokens)
-- [ ] Create test `TestDecode` (decode token IDs back to string, verify roundtrip)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `decode` by mapping each non-BOS token ID to `uchars[id]`
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `decode(tokens []int, uchars []rune) string` function stub (skip BOS tokens)
+- [x] Create test `TestDecode` (decode token IDs back to string, verify roundtrip)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `decode` by mapping each non-BOS token ID to `uchars[id]`
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: empty tokens, BOS-only tokens, mixed valid/BOS tokens
+- [x] Add edge case tests: empty tokens, BOS-only tokens, mixed valid/BOS tokens
 
 ---
 
@@ -287,56 +287,56 @@ for _, v := range logits[1:] {
 
 ### 9.A. Matrix Helper Function
 
-- [ ] Create `matrix(nOut, nIn int, std float64) [][]*Value` helper function stub
-- [ ] Create test `TestMatrix` (verify shape, verify values follow Normal(0, std))
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `matrix` using `rng.NormFloat64() * std` for each element
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Create `matrix(nOut, nIn int, std float64) [][]*Value` helper function stub
+- [x] Create test `TestMatrix` (verify shape, verify values follow Normal(0, std))
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `matrix` using `rng.NormFloat64() * std` for each element
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
 - [ ] Add statistical test: verify mean ≈ 0, stddev ≈ std over large sample
 
 ### 9.B. State Dict and Parameter Flattening
 
-- [ ] Create `initStateDict(vocabSize int) StateDict` and `flattenParams(stateDict StateDict) []*Value`
-- [ ] Create test `TestInitStateDict` (verify all keys present, correct shapes for given vocabSize)
-- [ ] Create test `TestFlattenParams` (verify correct count of parameters)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement `initStateDict(vocabSize int)` to create all matrices with Normal(0, 0.08) initialization; `flattenParams` to build flat list
-- [ ] Run `go test ./... -v` and confirm tests pass
+- [x] Create `initStateDict(vocabSize int) StateDict` and `flattenParams(stateDict StateDict) []*Value`
+- [x] Create test `TestInitStateDict` (verify all keys present, correct shapes for given vocabSize)
+- [x] Create test `TestFlattenParams` (verify correct count of parameters)
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement `initStateDict(vocabSize int)` to create all matrices with Normal(0, 0.08) initialization; `flattenParams` to build flat list
+- [x] Run `go test ./... -v` and confirm tests pass
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: different values of `nLayer`, `nEmbd`, `blockSize`, `vocabSize`; verify total parameter count
+- [x] Add edge case tests: different values of `nLayer`, `nEmbd`, `blockSize`, `vocabSize`; verify total parameter count
 
 ---
 
 ## 10. GPT Forward Pass (Embedding & Transformer Layers)
 
-- [ ] Create `gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*Value` stub
-- [ ] Create test `TestGPTEmbedding` (embed a token, verify output is nEmbd-dimensional)
+- [x] Create `gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*Value` stub
+- [x] Create test `TestGPTEmbedding` (embed a token, verify output is nEmbd-dimensional)
 - [ ] Create test `TestGPTAttention` (simple single-head attention, verify output shape)
 - [ ] Create test `TestGPTFull` (full forward pass, verify output logits have shape vocabSize)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement full GPT forward pass:
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement full GPT forward pass:
   - Token + position embedding + rmsnorm
   - For each layer: attention block (Q/K/V, per-head attention, output projection, residual)
   - For each layer: MLP block (fc1, relu, fc2, residual)
   - Output projection to logits
-- [ ] Run `go test ./... -v` and confirm tests pass
+- [x] Run `go test ./... -v` and confirm tests pass
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add critical tests:
+- [x] Add critical tests:
   - `TestGPTBackward` (backward through GPT, verify all gradients non-zero where expected)
-  - `TestGPTKVCacheAppend` (verify KV cache is accumulated correctly across positions)
-  - `go test --race ./...` (no data races on shared weight nodes)
+  - `TestGPTKVCache` (verify KV cache is accumulated correctly across positions)
+  - [x] `go test --race ./...` (no data races on shared weight nodes)
 
 ---
 
 ## 11. Adam Optimizer
 
-- [ ] Create `adamOptimizer` type (stores params, m, v, hyperparams)
-- [ ] Create `newAdamOptimizer(params []*Value, lr, beta1, beta2, eps float64) *adamOptimizer`
-- [ ] Create `(o *adamOptimizer) step(step int)` (one gradient update with bias correction & LR decay)
-- [ ] Create test `TestAdamStep` (single param, verify update direction and magnitude)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement Adam with:
+- [x] Create `adamOptimizer` type (stores params, m, v, hyperparams)
+- [x] Create `newAdamOptimizer(params []*Value, lr, beta1, beta2, eps float64) *adamOptimizer`
+- [x] Create `(o *adamOptimizer) step(step int)` (one gradient update with bias correction & LR decay)
+- [x] Create test `TestAdamStep` (single param, verify update direction and magnitude)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement Adam with:
   - First moment (momentum) buffer `m`
   - Second moment (variance) buffer `v`
   - Bias correction: `m_hat = m / (1 - beta1^(step+1))`, `v_hat = v / (1 - beta2^(step+1))`
@@ -344,18 +344,18 @@ for _, v := range logits[1:] {
     - ⚠️ **Go integer-division hazard:** cast explicitly — `lr_t = lr * (1.0 - float64(step)/float64(numSteps))`
   - Update: `param -= lr_t * m_hat / (sqrt(v_hat) + eps)`
   - Gradient reset to 0
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add critical tests: verify momentum accumulation, verify variance improves convergence
+- [x] Add critical tests: verify momentum accumulation, verify variance improves convergence
 
 ---
 
 ## 12. Training Loop
 
-- [ ] Create `train(numSteps int, docs []string, uchars []rune, BOS, vocabSize int, stateDict StateDict, optimizer *adamOptimizer)` (no return, just side effects)
-- [ ] Create test `TestTrainSteps` (run for 5 steps on tiny dataset, verify loss decreases or stabilizes)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement training loop:
+- [x] Create `train(numSteps int, docs []string, uchars []rune, BOS, vocabSize int, stateDict StateDict, optimizer *adamOptimizer)` (no return, just side effects)
+- [x] Create test `TestTrainSteps` (run for 5 steps on tiny dataset, verify loss decreases or stabilizes)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement training loop:
   - Per step: select doc (round-robin), encode using `uchars`, wrap with `BOS` tokens
   - Forward pass: call `gpt()` with `tokenID`, `posID`, KV cache, and `stateDict`
   - Compute cross-entropy loss using softmax probabilities and target tokens
@@ -364,7 +364,7 @@ for _, v := range logits[1:] {
   - Backward pass on loss
   - Call `optimizer.step(step)` to update all params in `stateDict`
   - Log progress with format: "step X / Y | loss Z.ZZZZ"
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
 - [ ] Add critical tests: `TestTrainLossDecreases` (over 100 steps on small data, loss should not increase dramatically)
 
@@ -372,44 +372,44 @@ for _, v := range logits[1:] {
 
 ## 13. Weighted Random Sampling for Inference
 
-- [ ] Create `weightedChoice(weights []float64) int` function stub
-- [ ] Create test `TestWeightedChoice` (verify higher weights selected more often over many samples)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `weightedChoice`:
+- [x] Create `weightedChoice(weights []float64) int` function stub
+- [x] Create test `TestWeightedChoice` (verify higher weights selected more often over many samples)
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `weightedChoice`:
   - Calculate cumulative sum of weights
   - Generate random float in [0, total)
   - Binary search or linear scan to find selected index
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: all-zero weights (should handle gracefully), single weight, uniform weights
+- [x] Add edge case tests: all-zero weights (should handle gracefully), single weight, uniform weights
 
 ---
 
 ## 13.5. Inference & Sampling
 
-- [ ] Create `sample(temperature float64, maxLen int, uchars []rune, BOS, vocabSize int, stateDict StateDict) string` (return sampled text)
-- [ ] Create test `TestSampleLength` (verify output length ≤ maxLen, stops on BOS)
-- [ ] Create test `TestSampleTemperature` (temp=0.01 should be more deterministic than temp=2.0)
-- [ ] Run `go test ./... -v` and confirm tests fail
-- [ ] Implement inference:
+- [x] Create `sample(temperature float64, maxLen int, uchars []rune, BOS, vocabSize int, stateDict StateDict) string` (return sampled text)
+- [x] Create test `TestSampleLength` (verify output length ≤ maxLen, stops on BOS)
+- [x] Create test `TestSampleTemperature` (temp=0.01 should be more deterministic than temp=2.0)
+- [x] Run `go test ./... -v` and confirm tests fail
+- [x] Implement inference:
   - Initialize fresh KV cache (empty slices for each layer)
   - Start with `tokenID = BOS`
   - For each position: compute logits via `gpt()`, divide by temperature, softmax, weighted sample using `weightedChoice()`
   - If sampled token is `BOS`, stop
   - Otherwise, append `uchars[tokenID]` to result string
   - Stop at max length or BOS token
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `golangci-lint run --fix` and fix lint errors
-- [ ] Add edge case tests: temperature extremes, single-step sample, all samples produce valid text
+- [x] Add edge case tests: temperature extremes, single-step sample, all samples produce valid text
 
 ---
 
 ## 14. Main Program & Orchestration
 
-- [ ] Create `main()` function stub in `microgpt.go` (no-op initially)
+- [x] Create `main()` function stub in `microgpt.go` (no-op initially)
 - [ ] Create integration test `TestMainRuns` (verify program starts, downloads data, trains, samples without panicking)
-- [ ] Run `go test ./... -v` and confirm test fails
-- [ ] Implement `main()` with detailed initialization:
+- [x] Run `go test ./... -v` and confirm test fails
+- [x] Implement `main()` with detailed initialization:
   - Call `initRNG(randomSeed)` to seed global RNG
   - Call `downloadDataset(dataURL, "input.txt")` (skip if file exists)
   - Call `loadDocs("input.txt")` → `docs`
@@ -424,7 +424,7 @@ for _, v := range logits[1:] {
   - Call `train(numSteps, docs, uchars, BOS, vocabSize, stateDict, optimizer)`
   - Print `"\n--- inference (new, hallucinated names) ---"`
   - Call `sample(temperature, blockSize, uchars, BOS, vocabSize, stateDict)` 20 times, print each with formatted index
-- [ ] Run `go test ./... -v` and confirm test passes
+- [x] Run `go test ./... -v` and confirm test passes
 - [ ] Run `go run .` and verify output (training progress, samples)
 - [ ] Run `golangci-lint run --fix` and fix lint errors
 - [ ] Final integration test: verify samples are valid names, training loss decreases
@@ -433,7 +433,7 @@ for _, v := range logits[1:] {
 
 Note: `train()` already produces output after Section 12 is implemented. This section only adds formatting refinements.
 
-- [ ] Add progress output formatting:
+- [x] Add progress output formatting:
   - Training step: use `\r` (carriage return) for same-line overwrite
   - After training loop: print `\n` to move to next line
   - Format: `"step %4d / %4d | loss %.4f"`
@@ -443,11 +443,11 @@ Note: `train()` already produces output after Section 12 is implemented. This se
 
 Note: `spec.md` must be updated (see Fix 13 below) before this verification step can succeed. The `gpt()` signature includes the `stateDict` parameter in `todo.md` but not yet in the original `spec.md`.
 
-- [ ] Verify all function signatures match spec.md requirements:
+- [x] Verify all function signatures match spec.md requirements:
   - `train(numSteps int, docs []string, uchars []rune, BOS, vocabSize int, stateDict StateDict, optimizer *adamOptimizer)`
   - `sample(temperature float64, maxLen int, uchars []rune, BOS, vocabSize int, stateDict StateDict) string`
   - `gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*Value`
-- [ ] Verify all tests pass parameters explicitly (no global state dependencies)
+- [x] Verify all tests pass parameters explicitly (no global state dependencies)
 - [ ] Run `golangci-lint run --fix` and verify no warnings about unused parameters
 
 ---
@@ -456,9 +456,9 @@ Note: `spec.md` must be updated (see Fix 13 below) before this verification step
 
 ### Core Verification
 
-- [ ] Run `go test ./... -v` — all tests pass
-- [ ] Run `go test --race ./...` — no race conditions
-- [ ] Run `go build -o microgpt .` — binary builds successfully
+- [x] Run `go test ./... -v` — all tests pass
+- [x] Run `go test --race ./...` — no race conditions
+- [x] Run `go build -o microgpt .` — binary builds successfully
 - [ ] Run `go run .` — program executes, trains, samples
 - [ ] Verify output matches Python reference (loss values, sample quality, vocabulary)
 
