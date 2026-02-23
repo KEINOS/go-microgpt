@@ -1,4 +1,12 @@
+# Ignore AI Agent instructions
 .claude/*
+CLAUDE.md
+
+# Ignore upstream files as a reference for implementation
 ref/*
 
-CLAUDE.md
+# Ignore generated files
+*.txt
+microgpt/microgpt
+
+

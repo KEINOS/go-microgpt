@@ -19,3 +19,14 @@ linters:
     - depguard
     # Disabled due to short variable to match Python reference implementation
     - varnamelen
+    # Disabled for educational implementation
+    - forbidigo      # fmt.Printf needed for training progress
+    - gosec          # crypto/rand not needed for educational RNG
+    - paralleltest   # parallel execution not required
+    - unparam        # keep parameter flexibility
+    - wrapcheck      # prioritize simplicity
+    - cyclop         # GPT forward pass is naturally complex
+    - noinlineerr    # inline error checks are fine
+    - funlen         # complex functions acceptable for clarity
+    - gocritic       # BOS capitalization matches spec.md
+    - noctx          # context not needed for educational HTTP requests

@@ -1,25 +1,32 @@
 # go-microgpt
 
-A minimal, educational implementation of GPT (Generative Pre-trained Transformer) in Go, ported from Andrej Karpathy's Python implementation.
+A minimal, educational implementation of GPT (Generative Pre-trained Transformer) in Go, ported from [Andrej Karpathy's Python implementation](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95).
 
 The goal is to understand the core transformer algorithm with maximum clarity—all in a single file, dependency-free, with no optimizations beyond what's necessary for comprehension.
 
 ## Project Structure
 
-- **`microgpt.go`** - Complete implementation (~800 lines)
-- **`microgpt_test.go`** - Comprehensive test suite (39 tests, 82.6% coverage)
-- **`spec.md`** - Detailed specification matching the Python reference
-- **`todo.md`** - TDD task checklist with implementation steps
-- **`CLAUDE.md`** - Project guidelines and conventions
+```shellscript
+.
+├── microgpt/            // Main package containing the implementation
+│   ├── microgpt.go      // Complete implementation (~800 lines)
+│   └── microgpt_test.go // Comprehensive test suite (39 tests, 82.6% coverage)
+├── README.md            // This file
+├── go.mod               // Go module file (no external dependencies)
+├── spec.md              // Detailed specification matching the Python reference
+└── todo.md              // TDD task checklist with implementation steps
+```
 
 ## Features
 
 ### Autograd System
+
 - Manual computation graph tracking
 - Automatic differentiation via backward pass
 - Support for all core operations: add, mul, pow, log, exp, relu
 
 ### Model Architecture
+
 - Multi-head self-attention with scaled dot-product
 - Transformer encoder stack (configurable depth)
 - Token + position embeddings
@@ -27,12 +34,14 @@ The goal is to understand the core transformer algorithm with maximum clarity—
 - RMSNorm layer normalization
 
 ### Training
+
 - Adam optimizer with momentum and variance correction
 - Learning rate decay (linear schedule)
 - Cross-entropy loss computation
 - Character-level tokenization from dataset
 
 ### Inference
+
 - Temperature-controlled sampling
 - Autoregressive generation with KV cache
 - Stop on special token or max length
@@ -82,8 +91,9 @@ Default configuration: ~3400 parameters
 
 ## Expected Output
 
-### Training
-```
+### Training Output
+
+```bash
 num docs: 10000
 vocab size: 27
 num params: 3424
@@ -104,7 +114,8 @@ Loss should decrease over time as the model learns to predict character distribu
 Sample quality improves with more training steps and larger models.
 
 ### Test Results
-```
+
+```bash
 39/39 tests passing
 Coverage: 82.6%
 Race conditions: 0 detected
@@ -114,13 +125,13 @@ Race conditions: 0 detected
 
 The implementation maintains algorithmic equivalence with the Python reference while being idiomatic Go:
 
-| Aspect | Python | Go |
-|--------|--------|-----|
-| **LOC** | 201 | 793 |
-| **Tests** | None | 39 (745 LOC) |
-| **Dependencies** | stdlib | stdlib |
-| **Algorithm** | ✅ Identical | ✅ Identical |
-| **Gradients** | Autograd | Manual with chain rule |
+| Aspect    | Python   | Go                  |
+| --------- | -------- | ------------------- |
+| **LOC**   | 201      | 793                 |
+| **Tests** | None     | 39 (745 LOC)        |
+| **Deps**  | stdlib   | stdlib              |
+| **Algo**  | ✅       | ✅                  |
+| **Grads** | Autodiff | Manual chain rule   |
 
 ## Key Implementation Details
 
@@ -142,17 +153,20 @@ Pointer semantics are critical: shared weight nodes must accumulate gradients co
 ### Critical Go Pitfalls (Avoided)
 
 1. **Integer Division**: Always cast to float64
+
    ```go
    // ❌ Wrong: loss = (1/n) * sum(losses)
    // ✅ Right: loss = (1.0/float64(n)) * sum(losses)
    ```
 
 2. **Softmax Numerical Stability**: Extract max as plain float
+
    ```go
    maxVal := logits[0].Data  // float64, not *Value
    ```
 
 3. **Race Conditions**: Backward pass is sequential (no goroutines)
+
    ```bash
    go test --race ./...  # Always passes
    ```
@@ -193,6 +207,7 @@ Not optimized (intentional). On a typical laptop:
 - Full training (1000 steps): ~5-10 seconds
 
 For performance benchmarking, run:
+
 ```bash
 go test ./... -bench=. -benchmem
 ```
