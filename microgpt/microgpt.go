@@ -578,6 +578,8 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 			kH := make([][]*Value, len(keys[li]))
 
 			vH := make([][]*Value, len(values[li]))
+			// We only have past tokens in KV cache, so no explicit causal mask is needed.
+			// If you later batch full sequences, add a mask to block future tokens.
 			for t := range len(keys[li]) {
 				kH[t] = keys[li][t][hs : hs+headDim]
 				vH[t] = values[li][t][hs : hs+headDim]
