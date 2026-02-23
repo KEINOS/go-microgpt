@@ -474,7 +474,8 @@ func matrix(nOut, nIn int, std float64) [][]*Value {
 	for i := range mat {
 		mat[i] = make([]*Value, nIn)
 		for j := range mat[i] {
-			// rng.NormFloat64() returns standard normal; multiply by std
+			// rng.NormFloat64() returns standard normal; multiply by std.
+			// Note: Go and Python use different Gaussian generators, so exact weights differ.
 			mat[i][j] = newValue(rng.NormFloat64()*std, nil, nil)
 		}
 	}
