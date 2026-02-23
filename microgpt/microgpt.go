@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"sort"
 	"slices"
 	"strings"
 )
@@ -508,8 +509,16 @@ func initStateDict(vocabSize int) StateDict {
 // flattenParams extracts all parameters from stateDict into a single flat list.
 func flattenParams(stateDict StateDict) []*Value {
 	var params []*Value
-	// Iterate through each matrix and flatten
-	for _, mat := range stateDict {
+	keys := make([]string, 0, len(stateDict))
+	for key := range stateDict {
+		keys = append(keys, key)
+	}
+
+	// Use deterministic key order to keep optimizer buffers stable across runs.
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		mat := stateDict[key]
 		for _, row := range mat {
 			params = append(params, row...)
 		}
@@ -735,7 +744,7 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 		// Average loss: (1/n) * sum(losses)
 		// CRITICAL: Avoid integer division
 		// Sum all losses first, then average (multiply by 1/n once)
-		loss := losses[0]
+		loss := losses[0] // Safe: n >= 1 guaranteed by BOS wrapping (allTokens has min 2 elements)
 		for i := 1; i < len(losses); i++ {
 			loss = add(loss, losses[i])
 		}
