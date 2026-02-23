@@ -29,11 +29,11 @@ const (
 
 // Model architecture configuration.
 const (
-	nLayer    = 1  // Number of transformer layers
-	nEmbd     = 16 // Embedding dimension
-	blockSize = 16 // Maximum context window length
-	nHead     = 4  // Number of attention heads
-	headDim   = 4  // Dimension per head (nEmbd / nHead)
+	nLayer    = 1             // Number of transformer layers
+	nEmbd     = 16            // Embedding dimension
+	blockSize = 16            // Maximum context window length
+	nHead     = 4             // Number of attention heads
+	headDim   = nEmbd / nHead // Dimension per head = 4
 )
 
 // Training configuration.
@@ -551,6 +551,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 
 	// Step 2: Transformer Layers
 	for li := range nLayer {
+		layerKey := fmt.Sprintf("layer%d", li)
 		// ============================================================
 		// Attention Sub-block
 		// ============================================================
@@ -558,9 +559,9 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 		x = rmsnorm(x)
 
 		// Compute Q, K, V
-		q := linear(x, stateDict[fmt.Sprintf("layer%d.attn_wq", li)]) // [nEmbd]
-		k := linear(x, stateDict[fmt.Sprintf("layer%d.attn_wk", li)]) // [nEmbd]
-		v := linear(x, stateDict[fmt.Sprintf("layer%d.attn_wv", li)]) // [nEmbd]
+		q := linear(x, stateDict[layerKey+".attn_wq"]) // [nEmbd]
+		k := linear(x, stateDict[layerKey+".attn_wk"]) // [nEmbd]
+		v := linear(x, stateDict[layerKey+".attn_wv"]) // [nEmbd]
 
 		// Append to KV cache
 		keys[li] = append(keys[li], k)
@@ -607,7 +608,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 		}
 
 		// Output projection
-		x = linear(xAttn, stateDict[fmt.Sprintf("layer%d.attn_wo", li)])
+		x = linear(xAttn, stateDict[layerKey+".attn_wo"])
 
 		// Residual connection
 		for i := range nEmbd {
@@ -621,7 +622,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 		x = rmsnorm(x)
 
 		// Expand layer
-		x = linear(x, stateDict[fmt.Sprintf("layer%d.mlp_fc1", li)]) // [4*nEmbd]
+		x = linear(x, stateDict[layerKey+".mlp_fc1"]) // [4*nEmbd]
 
 		// ReLU activation
 		for i := range x {
@@ -629,7 +630,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 		}
 
 		// Contract layer
-		x = linear(x, stateDict[fmt.Sprintf("layer%d.mlp_fc2", li)]) // [nEmbd]
+		x = linear(x, stateDict[layerKey+".mlp_fc2"]) // [nEmbd]
 
 		// Residual connection
 		for i := range nEmbd {
@@ -722,6 +723,8 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 		n := min(len(allTokens)-1, blockSize)
 
 		// Forward pass
+		// Note: We build one full graph for the whole sequence (clear but not fast).
+		// If you need speed, split the sequence into small chunks and backprop per chunk.
 		keys := make([][][]*Value, nLayer)
 
 		values := make([][][]*Value, nLayer)
@@ -747,7 +750,7 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 		// Average loss: (1/n) * sum(losses)
 		// CRITICAL: Avoid integer division
 		// Sum all losses first, then average (multiply by 1/n once)
-		loss := losses[0] // Safe: n >= 1 guaranteed by BOS wrapping (allTokens has min 2 elements)
+		loss := losses[0] // Semantically Safe: n >= 1 guaranteed (allTokens has min 2 BOS tokens)
 		for i := 1; i < len(losses); i++ {
 			loss = add(loss, losses[i])
 		}
