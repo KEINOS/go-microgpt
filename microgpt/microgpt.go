@@ -296,10 +296,11 @@ func softmax(logits []*Value) []*Value {
 
 	// Compute exps and their sum
 	exps := make([]*Value, len(logits))
-
+	maxValNode := newValue(maxVal, nil, nil)
 	total := newValue(0, nil, nil)
+
 	for i, v := range logits {
-		exps[i] = sub(v, newValue(maxVal, nil, nil)).exp()
+		exps[i] = sub(v, maxValNode).exp()
 		total = add(total, exps[i])
 	}
 
@@ -511,6 +512,7 @@ func initStateDict(vocabSize int) StateDict {
 // flattenParams extracts all parameters from stateDict into a single flat list.
 func flattenParams(stateDict StateDict) []*Value {
 	var params []*Value
+
 	keys := make([]string, 0, len(stateDict))
 	for key := range stateDict {
 		keys = append(keys, key)
