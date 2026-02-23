@@ -747,6 +747,7 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 			probs := softmax(logits)
 
 			// Cross-entropy loss: -log(probs[targetID])
+			// Note: This keeps the softmax graph for clarity; log-sum-exp is a faster alternative.
 			loss := neg(probs[targetID].log())
 			losses = append(losses, loss)
 		}
