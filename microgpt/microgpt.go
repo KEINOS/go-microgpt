@@ -1,8 +1,14 @@
-// Package main implements microgpt - a minimal, dependency-free educational implementation of a GPT language model.
-// This is a port of Andrej Karpathy's Python implementation to Go.
-// All code is in a single file to demonstrate the core transformer algorithm with maximum clarity.
+// Package main implements a minimal GPT language model for educational purposes.
 //
-// Reference: https://github.com/karpathy/makemore
+// Goal: Learn how GPT works from a single, clear Go file.
+//
+// This code ports Andrej Karpathy's Python microgpt to Go with no dependencies.
+// Everything is in one file to show the transformer algorithm as simply as possible.
+//
+// - Requirements: Go 1.22+ (uses range over integer)
+// - References:
+//   - Python version: https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
+//   - Training Data: https://github.com/karpathy/makemore
 package main
 
 import (
@@ -736,7 +742,9 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 
 		// Forward pass
 		// Note: We build one full graph for the whole sequence (clear but not fast).
-		// If you need speed, split the sequence into small chunks and backprop per chunk.
+		// This creates a large autograd graph in memory. Garbage collection handles cleanup,
+		// but performance will degrade with larger blockSize. For production use, consider
+		// chunking sequences or truncated backpropagation through time (TBPTT).
 		keys := make([][][]*Value, nLayer)
 
 		values := make([][][]*Value, nLayer)
