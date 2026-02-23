@@ -385,8 +385,9 @@ func TestBuildVocab(t *testing.T) {
 
 func TestEncode(t *testing.T) {
 	uchars := []rune{'a', 'b', 'c'}
+	vocabIndex := buildVocabIndex(uchars)
 
-	tokens := encode("abc", uchars)
+	tokens := encode("abc", vocabIndex)
 	if len(tokens) != 3 {
 		t.Errorf("encode length = %d, want 3", len(tokens))
 	}

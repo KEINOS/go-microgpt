@@ -12,8 +12,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"sort"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -419,6 +419,16 @@ func buildVocab(docs []string) ([]rune, int, int) {
 	return uchars, BOS, vocabSize
 }
 
+// buildVocabIndex builds a rune->index map for fast token lookup.
+func buildVocabIndex(uchars []rune) map[rune]int {
+	index := make(map[rune]int, len(uchars))
+	for i, ch := range uchars {
+		index[ch] = i
+	}
+
+	return index
+}
+
 // shuffleDocs shuffles documents in-place using the global RNG.
 func shuffleDocs(docs []string) {
 	rng.Shuffle(len(docs), func(i, j int) {
@@ -426,25 +436,16 @@ func shuffleDocs(docs []string) {
 	})
 }
 
-// encode converts a string to token IDs using the vocabulary.
-func encode(doc string, uchars []rune) []int {
+// encode converts a string to token IDs using a precomputed vocab index.
+func encode(doc string, vocabIndex map[rune]int) []int {
 	tokens := make([]int, len(doc))
 	for i, ch := range doc {
-		// Find index of character in uchars
-		found := false
-
-		for j, u := range uchars {
-			if u == ch {
-				tokens[i] = j
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
+		index, ok := vocabIndex[ch]
+		if !ok {
 			panic(fmt.Sprintf("character %c not in vocabulary", ch))
 		}
+
+		tokens[i] = index
 	}
 
 	return tokens
@@ -703,11 +704,12 @@ func (o *adamOptimizer) step(stepNum int) {
 // train runs the training loop for numSteps iterations.
 func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict StateDict, optimizer *adamOptimizer) {
 	lenBOS := 2
+	vocabIndex := buildVocabIndex(uchars)
 
 	for step := range numSteps {
 		// Select document (round-robin)
 		doc := docs[step%len(docs)]
-		tokens := encode(doc, uchars)
+		tokens := encode(doc, vocabIndex)
 
 		// Wrap with BOS tokens
 		allTokens := make([]int, 0, len(tokens)+lenBOS)
