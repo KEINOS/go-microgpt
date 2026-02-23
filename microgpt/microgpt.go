@@ -318,6 +318,10 @@ func softmax(logits []*Value) []*Value {
 // ============================================================================
 
 // rmsnorm computes root-mean-square normalization.
+// Note: This implementation omits the learnable scale parameter (γ/gamma)
+// to match the Python reference (microgpt.py), maintaining 1:1 parity for
+// educational clarity. Standard RMSNorm includes γ, but it's omitted here
+// for simplicity, following Andrej Karpathy's minimal design.
 func rmsnorm(x []*Value) []*Value {
 	// ms = sum(xi * xi) / len(x)
 	sumSq := newValue(0, nil, nil)
@@ -489,8 +493,12 @@ func initStateDict(vocabSize int) StateDict {
 	sd := make(StateDict)
 
 	// Embedding tables
-	sd["wte"] = matrix(vocabSize, nEmbd, initStd)     // token embeddings
-	sd["wpe"] = matrix(blockSize, nEmbd, initStd)     // position embeddings
+	sd["wte"] = matrix(vocabSize, nEmbd, initStd) // token embeddings
+	sd["wpe"] = matrix(blockSize, nEmbd, initStd) // position embeddings
+
+	// Note: Modern GPTs use weight tying (lm_head = wte.T) to reduce parameters
+	// and improve performance, but this implementation keeps them separate to
+	// match the Python reference (microgpt.py) for educational clarity and 1:1 parity.
 	sd["lm_head"] = matrix(vocabSize, nEmbd, initStd) // output logits projection
 
 	// Transformer layers
