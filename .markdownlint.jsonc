@@ -1,12 +1,4 @@
 {
-  // Configuration for markdownlint-cli2
-  "config": {
-    // Disable overly strict line length rule for technical documentation
-    "line-length": false,
-    // Keep other sensible rules enabled
-    "no-trailing-spaces": true,
-    "no-hard-tabs": true,
-    "no-multiple-blanks": true,
-    "fenced-code-language": true
-  }
+  // Disable line length rule
+  "MD013": false
 }

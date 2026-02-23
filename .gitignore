@@ -2,11 +2,7 @@
 .claude/*
 CLAUDE.md
 
-# Ignore upstream files as a reference for implementation
-ref/*
-
 # Ignore generated files
 *.txt
-microgpt/microgpt
-
-
+microgpt
+go-microgpt
