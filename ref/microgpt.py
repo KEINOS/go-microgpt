@@ -5,7 +5,7 @@ Everything else is just efficiency.
 
 @karpathy
 
-* https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95/14fb038816c7aae0bb9342c2dbf1a51dd134a5ff
+- Reference: https://gist.githubusercontent.com/karpathy/8627fe009c40f57531cb18360106ce95/raw/14fb038816c7aae0bb9342c2dbf1a51dd134a5ff/microgpt.py
 """
 
 import os  # os.path.exists
@@ -18,10 +18,8 @@ random.seed(42)  # Let there be order among chaos
 if not os.path.exists("input.txt"):
     import urllib.request
 
-    print("downloading dataset...")
     names_url = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
     urllib.request.urlretrieve(names_url, "input.txt")
-
 docs = [line.strip() for line in open("input.txt") if line.strip()]
 random.shuffle(docs)
 print(f"num docs: {len(docs)}")
