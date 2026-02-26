@@ -1,14 +1,17 @@
-// Package main implements a minimal GPT language model for educational purposes.
+// Package main implements a minimal GPT in a single, self-contained Go file.
 //
-// Goal: Learn how GPT works from a single, clear Go file.
+// This is a Go port of Andrej Karpathy's microgpt, built to study transformer
+// internals with zero external dependencies. It is a simple, personal learning
+// implementation meant to help a Go developer understand the core ideas.
 //
-// This code ports Andrej Karpathy's Python microgpt to Go with no dependencies.
-// Everything is in one file to show the transformer algorithm as simply as possible.
+// For Quick Start, configuration, and benchmarks, see README.md.
 //
 // - Requirements: Go 1.22+ (uses range over integer)
+// - Repository: https://github.com/KEINOS/go-microgpt/
 // - References:
-//   - Python version: https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
-//   - Training Data: https://github.com/karpathy/makemore
+//   - microgpt (Python): https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
+//   - microgpt (blog): https://karpathy.github.io/2026/02/12/microgpt/
+//   - Training data: https://github.com/karpathy/makemore
 package main
 
 import (
