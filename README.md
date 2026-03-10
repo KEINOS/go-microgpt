@@ -1,95 +1,119 @@
 # go-microgpt
 
-A Go implementation of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) ─ the simplest way to understand how GPT models train and generate text.
+A Go port of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal GPT implementation to learn transformer internals.
 
-Built in pure Go with no external dependencies in a single file.
+Pure Go, no external dependencies, single-file implementation.
 
-Created to deepen my understanding of how transformers/GPT models work at the fundamental level:
+Built for learning—a faithful 1:1 port to understand GPT internals. As the original implementation says, this project is not optimized for efficiency.
 
-- How transformers process information through multiple layers
-- How backpropagation computes gradients through the entire network
-- How Adam optimizer improves training over standard gradient descent
-- How to build neural networks with just basic Go data structures
+**What this project covers:**
 
-## Original work by Andrej Karpathy
+- Automatic differentiation (backpropagation through a computation graph)
+- Multi-head attention and transformer blocks
+- Adam optimizer with learning rate scheduling
+- Training and inference loops for sequence models
 
-- [microgpt Python implementation](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) @ gist.github.com
-- [Blog post explaining microgpt](https://karpathy.github.io/2026/02/12/microgpt/) @ karpathy.github.io
+## Original Implementation
+
+- Python: [gist.github.com/.../microgpt.py](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) [[Rev. 14fb038](https://gist.githubusercontent.com/karpathy/8627fe009c40f57531cb18360106ce95/raw/14fb038816c7aae0bb9342c2dbf1a51dd134a5ff/microgpt.py)]
+- Blog: [karpathy.github.io/2026/02/12/microgpt/](https://karpathy.github.io/2026/02/12/microgpt/)
 
 ## Quick Start
 
-```shellsession
-% # Simply run
-% go run microgpt.go
-```
+Run directly:
 
 ```shellsession
-% # Build and run
-% go build -o microgpt .
+% go run ./microgpt
+```
+
+Build and run:
+
+```shellsession
+% go build -o microgpt ./microgpt
 % ./microgpt
 ```
 
 Run tests:
 
 ```shellsession
-% go test -v -race .
+% go test ./microgpt -v -race
 ```
 
-## How to Customize
+## Configure
 
-Edit the constants in `microgpt.go` to adjust the model size and training behavior:
+Edit constants in `microgpt/microgpt.go`:
 
 ```go
 const (
-    nLayer    = 1       // number of transformer layers
-    nEmbd     = 16      // embedding dimension
-    blockSize = 16      // context window size
-    nHead     = 4       // number of attention heads
+    nLayer    = 1       // transformer layers (depth)
+    nEmbd     = 16      // embedding size (width)
+    blockSize = 16      // max sequence length per forward pass
+    nHead     = 4       // attention heads (must divide nEmbd)
     numSteps  = 1000    // training iterations
-    learningRate = 0.01 // learning rate for Adam optimizer
+    learningRate = 0.01 // Adam learning rate (0.01 recommended)
 )
 ```
 
-Default configuration: approximately 3,400 parameters.
+- Default: ~3,400 parameters.
 
-## Data
+**How each affects training:**
 
-This project uses the names dataset from [Karpathy's makemore project](https://github.com/karpathy/makemore). The dataset is automatically downloaded when you run the program for the first time.
+| Parameter | Increase | Effect |
+| :-------- | :------- | :----- |
+| `nLayer` | More layers | Larger model, slower training |
+| `nEmbd` | Bigger size | More expressive, higher memory |
+| `nHead` | More heads | Better attention patterns, slower |
+| `blockSize` | Longer context | Model sees more history |
+| `numSteps` | More iterations | Lower loss, longer training |
+| `learningRate` | Higher value | Faster convergence, risks instability |
 
-## What's Included
+See [Karpathy's blog](https://karpathy.github.io/2026/02/12/microgpt/) for detailed explanations.
 
-- **Computation Graph Engine** — Manual implementation of automatic differentiation (backpropagation)
-- **Transformer Components** — Multi-head self-attention, RMSNorm, feed-forward layers
-- **Training** — Adam optimizer with bias correction
-- **Inference** — Autoregressive text generation with temperature control
-- **Input Format** — Character-level tokenization (trains on individual characters)
+## Dataset
 
-**What's not included (by design):**
+Character-level names dataset from [makemore](https://github.com/karpathy/makemore). Auto-downloaded on first run.
+
+## Components
+
+**Included:**
+
+- Autograd system with manual backpropagation
+- Multi-head attention, RMSNorm, feed-forward blocks
+- Adam optimizer with bias correction
+- Autoregressive sampling with temperature scaling
+- Character-level tokenization
+
+**Not included (by design):**
 
 - Batching
-- Dropout or regularization
-- Bias terms in linear layers
-- Causal masking (trains on single sequences)
+- Dropout/regularization
+- Bias vectors
+- Causal masking
 
-## Performance
+## Speed
 
-These numbers are for reference only. This project aims for a 1:1 port of the original, so it is not optimized and is not designed for speed.
+This section is for reference only.
+
+Even though this Go port runs ~9× faster than Python (due to compiled vs interpreted execution), we focus on faithfully reproducing the original code for learning, not optimizing performance.
 
 ```shellsession
 % hyperfine "python3 ./ref/microgpt.py" "./microgpt"
 Benchmark 1: python3 ./ref/microgpt.py
-  Time (mean ± σ):     54.546 s ±  0.931 s    [User: 53.994 s, System: 0.484 s]
-  Range (min … max):   53.003 s … 56.012 s    10 runs
+  Time (mean ± σ):     54.546 s ±  0.931 s
 
 Benchmark 2: ./microgpt
-  Time (mean ± σ):      5.928 s ±  0.165 s    [User: 12.324 s, System: 0.786 s]
-  Range (min … max):    5.796 s …  6.375 s    10 runs
+  Time (mean ± σ):      5.928 s ±  0.165 s
 
-Summary
-  ./microgpt ran
-    9.20 ± 0.30 times faster than python3 ./ref/microgpt.py
+Summary: ./microgpt runs 9.20× faster
 ```
+
+## References
+
+- [たった200行のPythonコードでGPTの学習と推論を動かす【microgpt by A. Karpathy】](https://youtu.be/bR1SyyI7z1k?si=G5XPnE7j-luK53Tu) | [数理の弾丸⚡️京大博士のAI解説](https://www.youtube.com/@mathbullet) @ Youtube (in Japanese)
 
 ## License
 
 - [MIT License](LICENSE)
+- Authors:
+  - [Andrej Karpathy](https://karpathy.ai/) (original Python implementation)
+  - [KEINOS](https://github.com/KEINOS) and [the contributors](https://github.com/KEINOS/go-microgpt/graphs/contributors) (Go port)
