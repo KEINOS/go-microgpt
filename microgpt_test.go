@@ -470,7 +470,7 @@ func TestInitStateDict(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 
 	// Check all required keys exist
 	requiredKeys := []string{"wte", "wpe", "lm_head"}
@@ -517,7 +517,7 @@ func TestFlattenParams(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 	params := flattenParams(sd)
 
 	// Calculate expected parameter count
@@ -549,7 +549,7 @@ func TestGPTEmbedding(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 
 	// Create empty KV cache for single position
 	keys := make([][][]*Value, nLayer)
@@ -578,7 +578,7 @@ func TestGPTKVCache(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 
 	keys := make([][][]*Value, nLayer)
 
@@ -607,7 +607,7 @@ func TestGPTBackward(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 	params := flattenParams(sd)
 
 	keys := make([][][]*Value, nLayer)
@@ -751,7 +751,7 @@ func TestSampleLength(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 
 	uchars := make([]rune, vocabSize-1)
 	for i := range uchars {
@@ -770,7 +770,7 @@ func TestSampleTemperature(t *testing.T) {
 	initRNG(42)
 
 	vocabSize := 27
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 
 	uchars := make([]rune, vocabSize-1)
 	for i := range uchars {
@@ -804,7 +804,7 @@ func TestTrainSteps(_ *testing.T) {
 
 	docs := []string{"abc", "bcd", "aaa"}
 	uchars, BOS, vocabSize := buildVocab(docs)
-	sd := initStateDict(vocabSize)
+	sd := newStateDict(vocabSize)
 	params := flattenParams(sd)
 	optimizer := newAdamOptimizer(params, learningRate, beta1, beta2, epsAdam)
 

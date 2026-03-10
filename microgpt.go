@@ -1,4 +1,4 @@
-// Package main implements a minimal GPT in a single, self-contained Go file.
+// Package main implements a minimal GPT-2 in a single, self-contained Go file.
 //
 // This is a Go port of Andrej Karpathy's microgpt, built to study transformer
 // internals with zero external dependencies. It is a simple, personal learning
@@ -27,7 +27,7 @@ import (
 )
 
 // ============================================================================
-// Configuration & Constants
+//  Configuration & Constants
 // ============================================================================
 
 // Magic Numbers.
@@ -56,18 +56,101 @@ const (
 
 // Data and inference configuration.
 const (
-	randomSeed  = 42 // Global RNG seed
-	dataURL     = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
-	temperature = 0.5  // Sampling temperature for inference
-	initStd     = 0.08 // Std dev for weight initialization
+	randomSeed          = 42 // Global RNG seed
+	dataURL             = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
+	temperature         = 0.5  // Sampling temperature for inference
+	initStd             = 0.08 // Std dev for weight initialization
+	numInferenceSamples = 20   // Number of samples to generate during inference
 )
 
 // Global RNG - seeded once at startup.
 var rng *rand.Rand
 
 // ============================================================================
-// Value Type - Autograd Node
+//  Main Function (Training & Inference)
 // ============================================================================
+
+func main() {
+	// Initialize global Random Number Generator
+	initRNG(randomSeed)
+
+	// ------------------------------------------------------------------------
+	//  Let there be a Dataset `docs`: []string of documents (e.g. a list of names)
+	// ------------------------------------------------------------------------
+
+	// Download dataset if needed
+	err := downloadDataset(dataURL, "input.txt")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error downloading dataset: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Load documents (1 sample per line)
+	docs, err := loadDocs("input.txt")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading docs: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Shuffle documents
+	shuffleDocs(docs)
+	fmt.Printf("num docs: %d\n", len(docs))
+
+	// ------------------------------------------------------------------------
+	//  Let there be a Tokenizer to translate strings to sequences of integers
+	// ("tokens") and back
+	// ------------------------------------------------------------------------
+
+	// Build vocabulary.
+	// * `uchars` is the sorted list of unique characters in the dataset
+	// * `BOS` is a special token ID for "beginning of sequence". Also used as
+	//   "end of sequence" (a.k.a. EOS) as well
+	// * `vocabSize` is the total number of tokens (unique chars + BOS)
+	uchars, BOS, vocabSize := buildVocab(docs)
+	fmt.Printf("vocab size: %d\n", vocabSize)
+
+	// ------------------------------------------------------------------------
+	//  Initialize the parameters, to store the knowledge of the model
+	// ------------------------------------------------------------------------
+
+	stateDict := newStateDict(vocabSize) // initialized model weight matrices
+
+	params := flattenParams(stateDict)
+	fmt.Printf("num params: %d\n", len(params))
+
+	// ------------------------------------------------------------------------
+	//  Let there be Adam, the blessed optimizer and its buffers
+	// ------------------------------------------------------------------------
+
+	// Create Adam optimizer
+	optimizer := newAdamOptimizer(params, learningRate, beta1, beta2, epsAdam)
+
+	// ------------------------------------------------------------------------
+	//  Repeat in sequence (training loop)
+	// ------------------------------------------------------------------------
+
+	train(numSteps, docs, uchars, BOS, vocabSize, stateDict, optimizer)
+
+	// ------------------------------------------------------------------------
+	//  Inference: may the model babble back to us
+	// ------------------------------------------------------------------------
+
+	fmt.Println("\n--- inference (new, hallucinated names) ---")
+
+	for sampleIdx := range numInferenceSamples {
+		result := sample(temperature, blockSize, uchars, BOS, vocabSize, stateDict)
+		fmt.Printf("sample %2d: %s\n", sampleIdx+1, result)
+	}
+}
+
+// ============================================================================
+//  Type: Value - Autograd Node
+// ============================================================================
+// Let there be Autograd to recursively apply the chain rule through a computation
+// graph (a.k.a. backpropagation).
+
+// Let there be Autograd to recursively apply the chain rule through a computation
+// graph (a.k.a. backpropagation).
 
 // Value represents a scalar node in a computation graph for automatic differentiation.
 // All scalars in computation must be *Value (not Value) to support gradient accumulation
@@ -79,72 +162,9 @@ type Value struct {
 	localGrads []float64 // Local derivatives w.r.t. children (chain rule coefficients)
 }
 
-// StateDict stores all model weight matrices indexed by name.
-type StateDict map[string][][]*Value
-
-// ============================================================================
-//  Main Function (Training & Inference)
-// ============================================================================
-
-func main() {
-	// Initialize global Random Number Generator
-	initRNG(randomSeed)
-
-	// Download dataset if needed
-	err := downloadDataset(dataURL, "input.txt")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error downloading dataset: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Load documents
-	docs, err := loadDocs("input.txt")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading docs: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Shuffle documents
-	shuffleDocs(docs)
-	fmt.Printf("num docs: %d\n", len(docs))
-
-	// Build vocabulary
-	uchars, BOS, vocabSize := buildVocab(docs)
-	fmt.Printf("vocab size: %d\n", vocabSize)
-
-	// Initialize model
-	stateDict := initStateDict(vocabSize)
-	params := flattenParams(stateDict)
-	fmt.Printf("num params: %d\n", len(params))
-
-	// Create optimizer
-	optimizer := newAdamOptimizer(params, learningRate, beta1, beta2, epsAdam)
-
-	// Training loop
-	train(numSteps, docs, uchars, BOS, vocabSize, stateDict, optimizer)
-
-	// Inference
-	fmt.Println("\n--- inference (new, hallucinated names) ---")
-
-	for sampleIdx := range 20 {
-		result := sample(temperature, blockSize, uchars, BOS, vocabSize, stateDict)
-		fmt.Printf("sample %2d: %s\n", sampleIdx+1, result)
-	}
-}
-
-// ============================================================================
-// RNG Initialization
-// ============================================================================
-
-// initRNG initializes the global random number generator with a seed.
-func initRNG(seed int64) {
-	source := rand.NewSource(seed)
-	rng = rand.New(source)
-}
-
-// ============================================================================
-// Section 1: Value Constructor
-// ============================================================================
+// ----------------------------------------------------------------------------
+//  Constructor
+// ----------------------------------------------------------------------------
 
 // newValue creates a new Value node.
 func newValue(data float64, children []*Value, localGrads []float64) *Value {
@@ -156,8 +176,183 @@ func newValue(data float64, children []*Value, localGrads []float64) *Value {
 	}
 }
 
+// ----------------------------------------------------------------------------
+//  Methods
+// ----------------------------------------------------------------------------
+
+// backward performs reverse-mode automatic differentiation on the computation
+// graph (apply the chain rule through a computation graph, a.k.a. backpropagation).
+func (v *Value) backward() {
+	// Build topological order via DFS post-order traversal
+	visited := make(map[*Value]bool)
+	topo := make([]*Value, 0)
+
+	var buildTopo func(*Value)
+
+	buildTopo = func(node *Value) {
+		if visited[node] {
+			return
+		}
+
+		visited[node] = true
+		for _, child := range node.children {
+			buildTopo(child)
+		}
+
+		topo = append(topo, node)
+	}
+
+	buildTopo(v)
+
+	// Set root gradient to 1
+	v.Grad = 1.0
+
+	// Propagate gradients in reverse topological order
+	for i := len(topo) - 1; i >= 0; i-- {
+		node := topo[i]
+		for j, child := range node.children {
+			child.Grad += node.localGrads[j] * node.Grad
+		}
+	}
+}
+
+// log returns ln(v).
+func (v *Value) log() *Value {
+	return newValue(
+		math.Log(v.Data),
+		[]*Value{v},
+		[]float64{1 / v.Data},
+	)
+}
+
+// exp returns e^v.
+func (v *Value) exp() *Value {
+	return newValue(
+		math.Exp(v.Data),
+		[]*Value{v},
+		[]float64{math.Exp(v.Data)},
+	)
+}
+
+// relu returns max(0, v).
+func (v *Value) relu() *Value {
+	relu := 0.0
+	if v.Data > 0 {
+		relu = 1.0
+	}
+
+	return newValue(
+		math.Max(0, v.Data),
+		[]*Value{v},
+		[]float64{relu},
+	)
+}
+
 // ============================================================================
-// Section 2: Value Arithmetic Operations
+//  Type: StateDict - Model Parameters
+// ============================================================================
+
+// StateDict stores all model weight matrices indexed by name.
+type StateDict map[string][][]*Value
+
+// ----------------------------------------------------------------------------
+//  Constructor
+// ----------------------------------------------------------------------------
+
+// newStateDict creates and initializes all model weight matrices.
+func newStateDict(vocabSize int) StateDict {
+	sd := make(StateDict)
+
+	// Embedding tables
+	sd["wte"] = matrix(vocabSize, nEmbd, initStd) // token embeddings
+	sd["wpe"] = matrix(blockSize, nEmbd, initStd) // position embeddings
+
+	// Note: Modern GPTs use weight tying (lm_head = wte.T) to reduce parameters
+	// and improve performance, but this implementation keeps them separate to
+	// match the Python reference (microgpt.py) for educational clarity and 1:1 parity.
+	sd["lm_head"] = matrix(vocabSize, nEmbd, initStd) // output logits projection
+
+	// Transformer layers
+	for i := range nLayer {
+		key := fmt.Sprintf("layer%d", i)
+		// Attention weights
+		sd[key+".attn_wq"] = matrix(nEmbd, nEmbd, initStd) // query projection
+		sd[key+".attn_wk"] = matrix(nEmbd, nEmbd, initStd) // key projection
+		sd[key+".attn_wv"] = matrix(nEmbd, nEmbd, initStd) // value projection
+		sd[key+".attn_wo"] = matrix(nEmbd, nEmbd, initStd) // output projection
+		// MLP weights
+		sd[key+".mlp_fc1"] = matrix(mlpExpansionRatio*nEmbd, nEmbd, initStd) // expand layer
+		sd[key+".mlp_fc2"] = matrix(nEmbd, mlpExpansionRatio*nEmbd, initStd) // contract layer
+	}
+
+	return sd
+}
+
+// ============================================================================
+//  Type: AdamOptimizer - Optimization Algorithm
+// ============================================================================
+
+// adamOptimizer implements the Adam optimization algorithm.
+type adamOptimizer struct {
+	params []*Value
+	m      []float64 // First moment (momentum)
+	v      []float64 // Second moment (variance)
+	lr     float64   // Learning rate
+	beta1  float64   // First moment decay
+	beta2  float64   // Second moment decay
+	eps    float64   // Epsilon for numerical stability
+}
+
+// ----------------------------------------------------------------------------
+//  Constructor
+// ----------------------------------------------------------------------------
+
+// newAdamOptimizer creates a new Adam optimizer.
+func newAdamOptimizer(params []*Value, lr, beta1, beta2, eps float64) *adamOptimizer {
+	return &adamOptimizer{
+		params: params,
+		m:      make([]float64, len(params)),
+		v:      make([]float64, len(params)),
+		lr:     lr,
+		beta1:  beta1,
+		beta2:  beta2,
+		eps:    eps,
+	}
+}
+
+// ----------------------------------------------------------------------------
+//  Method
+// ----------------------------------------------------------------------------
+
+// step performs one optimization step with learning rate decay.
+func (o *adamOptimizer) step(stepNum int) {
+	// Learning rate decay: lr_t = lr * (1 - step / numSteps)
+	// CRITICAL: Avoid integer division - cast to float64
+	lrT := o.lr * (1.0 - float64(stepNum)/float64(numSteps))
+
+	for i, p := range o.params {
+		// Update biased first moment
+		o.m[i] = o.beta1*o.m[i] + (1-o.beta1)*p.Grad
+
+		// Update biased second moment
+		o.v[i] = o.beta2*o.v[i] + (1-o.beta2)*p.Grad*p.Grad
+
+		// Compute bias-corrected first moment
+		mHat := o.m[i] / (1 - math.Pow(o.beta1, float64(stepNum+1)))
+
+		// Compute bias-corrected second moment
+		vHat := o.v[i] / (1 - math.Pow(o.beta2, float64(stepNum+1)))
+
+		// Update parameter
+		p.Data -= lrT * mHat / (math.Sqrt(vHat) + o.eps)
+
+		// Reset gradient
+		p.Grad = 0
+	}
+}
+
+// ============================================================================
+//  Arithmetic Operations/Functions
 // ============================================================================
 
 // add returns a + b.
@@ -195,85 +390,13 @@ func div(a, b *Value) *Value {
 }
 
 // ============================================================================
-// Section 3: Value Advanced Operations
+//  Model Architecture
 // ============================================================================
+// Function mapping tokens and parameters to logits ([]*Value) over what comes
+// next Follow. GPT-2, blessed among the GPTs, with minor differences:
+//   layernorm -> rmsnorm, no biases, GeLU -> ReLU
 
-// log returns ln(v).
-func (v *Value) log() *Value {
-	return newValue(
-		math.Log(v.Data),
-		[]*Value{v},
-		[]float64{1 / v.Data},
-	)
-}
-
-// exp returns e^v.
-func (v *Value) exp() *Value {
-	return newValue(
-		math.Exp(v.Data),
-		[]*Value{v},
-		[]float64{math.Exp(v.Data)},
-	)
-}
-
-// relu returns max(0, v).
-func (v *Value) relu() *Value {
-	relu := 0.0
-	if v.Data > 0 {
-		relu = 1.0
-	}
-
-	return newValue(
-		math.Max(0, v.Data),
-		[]*Value{v},
-		[]float64{relu},
-	)
-}
-
-// ============================================================================
-// Section 4: Backward Pass - Topological Sort & Backpropagation
-// ============================================================================
-
-// backward performs reverse-mode automatic differentiation on the computation graph.
-func (v *Value) backward() {
-	// Build topological order via DFS post-order traversal
-	visited := make(map[*Value]bool)
-	topo := make([]*Value, 0)
-
-	var buildTopo func(*Value)
-
-	buildTopo = func(node *Value) {
-		if visited[node] {
-			return
-		}
-
-		visited[node] = true
-		for _, child := range node.children {
-			buildTopo(child)
-		}
-
-		topo = append(topo, node)
-	}
-
-	buildTopo(v)
-
-	// Set root gradient to 1
-	v.Grad = 1.0
-
-	// Propagate gradients in reverse topological order
-	for i := len(topo) - 1; i >= 0; i-- {
-		node := topo[i]
-		for j, child := range node.children {
-			child.Grad += node.localGrads[j] * node.Grad
-		}
-	}
-}
-
-// ============================================================================
-// Section 5: Helper Function - linear (matrix-vector product)
-// ============================================================================
-
-// linear computes y = W @ x (matrix-vector product, no bias)
+// linear (matrix-vector product) computes y = W @ x (matrix-vector product, no bias)
 // w is shape [nOut, nIn], x is shape [nIn], returns shape [nOut].
 func linear(x []*Value, w [][]*Value) []*Value {
 	out := make([]*Value, len(w))
@@ -288,10 +411,6 @@ func linear(x []*Value, w [][]*Value) []*Value {
 
 	return out
 }
-
-// ============================================================================
-// Section 6: Helper Function - softmax
-// ============================================================================
 
 // softmax computes numerically stable softmax over logits.
 func softmax(logits []*Value) []*Value {
@@ -322,15 +441,11 @@ func softmax(logits []*Value) []*Value {
 	return out
 }
 
-// ============================================================================
-// Section 7: Helper Function - rmsnorm
-// ============================================================================
-
 // rmsnorm computes root-mean-square normalization.
-// Note: This implementation omits the learnable scale parameter (γ/gamma)
-// to match the Python reference (microgpt.py), maintaining 1:1 parity for
-// educational clarity. Standard RMSNorm includes γ, but it's omitted here
-// for simplicity, following Andrej Karpathy's minimal design.
+//
+// Note: Standard RMSNorm includes a learnable scale parameter (γ/gamma) that
+// scales the normalized output. But for educational clarity, it omits this
+// parameter to match the original implementation in microgpt.py.
 func rmsnorm(x []*Value) []*Value {
 	// ms = sum(xi * xi) / len(x)
 	sumSq := newValue(0, nil, nil)
@@ -352,206 +467,6 @@ func rmsnorm(x []*Value) []*Value {
 	return out
 }
 
-// ============================================================================
-// Section 8: Dataset Loading & Tokenization
-// ============================================================================
-
-// downloadDataset downloads the dataset from a URL if it doesn't exist locally.
-func downloadDataset(url, filename string) error {
-	if _, err := os.Stat(filename); err == nil {
-		// File already exists
-		return nil
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = resp.Body.Close() // Ignore close error in defer
-	}()
-
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = file.Close() // Ignore close error in defer
-	}()
-
-	_, err = io.Copy(file, resp.Body)
-
-	return err
-}
-
-// loadDocs reads all lines from a file, strips whitespace, and returns non-empty lines.
-func loadDocs(filename string) ([]string, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := strings.Split(string(data), "\n")
-
-	var docs []string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			docs = append(docs, line)
-		}
-	}
-
-	return docs, nil
-}
-
-// buildVocab extracts unique characters from docs, sorts them, and returns:
-// uchars (sorted unique characters), BOS (special token ID), vocabSize (total tokens).
-func buildVocab(docs []string) ([]rune, int, int) {
-	// Collect all unique characters
-	charSet := make(map[rune]bool)
-
-	for _, doc := range docs {
-		for _, ch := range doc {
-			charSet[ch] = true
-		}
-	}
-
-	// Convert to sorted slice
-	uchars := make([]rune, 0, len(charSet))
-	for ch := range charSet {
-		uchars = append(uchars, ch)
-	}
-
-	slices.Sort(uchars)
-
-	BOS := len(uchars)
-	vocabSize := len(uchars) + 1
-
-	return uchars, BOS, vocabSize
-}
-
-// buildVocabIndex builds a rune->index map for fast token lookup.
-func buildVocabIndex(uchars []rune) map[rune]int {
-	index := make(map[rune]int, len(uchars))
-	for i, ch := range uchars {
-		index[ch] = i
-	}
-
-	return index
-}
-
-// shuffleDocs shuffles documents in-place using the global RNG.
-func shuffleDocs(docs []string) {
-	rng.Shuffle(len(docs), func(i, j int) {
-		docs[i], docs[j] = docs[j], docs[i]
-	})
-}
-
-// encode converts a string to token IDs using a precomputed vocab index.
-func encode(doc string, vocabIndex map[rune]int) []int {
-	tokens := make([]int, len(doc))
-	for i, ch := range doc {
-		index, ok := vocabIndex[ch]
-		if !ok {
-			panic(fmt.Sprintf("character %c not in vocabulary", ch))
-		}
-
-		tokens[i] = index
-	}
-
-	return tokens
-}
-
-// decode converts token IDs back to a string, skipping BOS tokens.
-func decode(tokens []int, uchars []rune, BOS int) string {
-	var result strings.Builder
-
-	for _, tokenID := range tokens {
-		if tokenID != BOS && tokenID < len(uchars) {
-			result.WriteRune(uchars[tokenID])
-		}
-	}
-
-	return result.String()
-}
-
-// ============================================================================
-// Section 9: Model Parameter Initialization
-// ============================================================================
-
-// matrix creates a matrix of shape [nOut, nIn] initialized with Normal(0, std).
-func matrix(nOut, nIn int, std float64) [][]*Value {
-	mat := make([][]*Value, nOut)
-	for i := range mat {
-		mat[i] = make([]*Value, nIn)
-		for j := range mat[i] {
-			// rng.NormFloat64() returns standard normal; multiply by std.
-			// Note: Go and Python use different Gaussian generators, so exact weights differ.
-			mat[i][j] = newValue(rng.NormFloat64()*std, nil, nil)
-		}
-	}
-
-	return mat
-}
-
-// initStateDict creates and initializes all model weight matrices.
-func initStateDict(vocabSize int) StateDict {
-	sd := make(StateDict)
-
-	// Embedding tables
-	sd["wte"] = matrix(vocabSize, nEmbd, initStd) // token embeddings
-	sd["wpe"] = matrix(blockSize, nEmbd, initStd) // position embeddings
-
-	// Note: Modern GPTs use weight tying (lm_head = wte.T) to reduce parameters
-	// and improve performance, but this implementation keeps them separate to
-	// match the Python reference (microgpt.py) for educational clarity and 1:1 parity.
-	sd["lm_head"] = matrix(vocabSize, nEmbd, initStd) // output logits projection
-
-	// Transformer layers
-	for i := range nLayer {
-		key := fmt.Sprintf("layer%d", i)
-		// Attention weights
-		sd[key+".attn_wq"] = matrix(nEmbd, nEmbd, initStd) // query projection
-		sd[key+".attn_wk"] = matrix(nEmbd, nEmbd, initStd) // key projection
-		sd[key+".attn_wv"] = matrix(nEmbd, nEmbd, initStd) // value projection
-		sd[key+".attn_wo"] = matrix(nEmbd, nEmbd, initStd) // output projection
-		// MLP weights
-		sd[key+".mlp_fc1"] = matrix(mlpExpansionRatio*nEmbd, nEmbd, initStd) // expand layer
-		sd[key+".mlp_fc2"] = matrix(nEmbd, mlpExpansionRatio*nEmbd, initStd) // contract layer
-	}
-
-	return sd
-}
-
-// flattenParams extracts all parameters from stateDict into a single flat list.
-func flattenParams(stateDict StateDict) []*Value {
-	var params []*Value
-
-	keys := make([]string, 0, len(stateDict))
-	for key := range stateDict {
-		keys = append(keys, key)
-	}
-
-	// Use deterministic key order to keep optimizer buffers stable across runs.
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		mat := stateDict[key]
-		for _, row := range mat {
-			params = append(params, row...)
-		}
-	}
-
-	return params
-}
-
-// ============================================================================
-// Section 10: GPT Forward Pass
-// ============================================================================
-
 // gpt computes the forward pass of the GPT model
 // Returns logits of shape [vocabSize].
 func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*Value {
@@ -572,7 +487,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 	for li := range nLayer {
 		layerKey := fmt.Sprintf("layer%d", li)
 		// ============================================================
-		// Attention Sub-block
+		//  Attention Sub-block
 		// ============================================================
 		xRes := x
 		x = rmsnorm(x)
@@ -613,8 +528,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 				scores[t] = mul(sum, newValue(1.0/math.Sqrt(float64(headDim)), nil, nil))
 			}
 
-			// Softmax to get attention weights
-			attnW := softmax(scores)
+			attnW := softmax(scores) // get attention weights
 
 			// Weighted value aggregation
 			headOut := make([]*Value, headDim)
@@ -637,7 +551,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 		}
 
 		// ============================================================
-		// MLP Sub-block
+		//  MLP Sub-block
 		// ============================================================
 		xRes = x
 		x = rmsnorm(x)
@@ -666,62 +580,7 @@ func gpt(tokenID, posID int, keys, values [][][]*Value, stateDict StateDict) []*
 }
 
 // ============================================================================
-// Section 11: Adam Optimizer
-// ============================================================================
-
-// adamOptimizer implements the Adam optimization algorithm.
-type adamOptimizer struct {
-	params []*Value
-	m      []float64 // First moment (momentum)
-	v      []float64 // Second moment (variance)
-	lr     float64   // Learning rate
-	beta1  float64   // First moment decay
-	beta2  float64   // Second moment decay
-	eps    float64   // Epsilon for numerical stability
-}
-
-// newAdamOptimizer creates a new Adam optimizer.
-func newAdamOptimizer(params []*Value, lr, beta1, beta2, eps float64) *adamOptimizer {
-	return &adamOptimizer{
-		params: params,
-		m:      make([]float64, len(params)),
-		v:      make([]float64, len(params)),
-		lr:     lr,
-		beta1:  beta1,
-		beta2:  beta2,
-		eps:    eps,
-	}
-}
-
-// step performs one optimization step with learning rate decay.
-func (o *adamOptimizer) step(stepNum int) {
-	// Learning rate decay: lr_t = lr * (1 - step / numSteps)
-	// CRITICAL: Avoid integer division - cast to float64
-	lrT := o.lr * (1.0 - float64(stepNum)/float64(numSteps))
-
-	for i, p := range o.params {
-		// Update biased first moment
-		o.m[i] = o.beta1*o.m[i] + (1-o.beta1)*p.Grad
-
-		// Update biased second moment
-		o.v[i] = o.beta2*o.v[i] + (1-o.beta2)*p.Grad*p.Grad
-
-		// Compute bias-corrected first moment
-		mHat := o.m[i] / (1 - math.Pow(o.beta1, float64(stepNum+1)))
-
-		// Compute bias-corrected second moment
-		vHat := o.v[i] / (1 - math.Pow(o.beta2, float64(stepNum+1)))
-
-		// Update parameter
-		p.Data -= lrT * mHat / (math.Sqrt(vHat) + o.eps)
-
-		// Reset gradient
-		p.Grad = 0
-	}
-}
-
-// ============================================================================
-// Section 12: Training Loop
+//  Training Loop
 // ============================================================================
 
 // train runs the training loop for numSteps iterations.
@@ -795,40 +654,7 @@ func train(numSteps int, docs []string, uchars []rune, BOS, _ int, stateDict Sta
 }
 
 // ============================================================================
-// Section 13: Weighted Random Sampling
-// ============================================================================
-
-// weightedChoice selects an index based on weights (normalized probabilities).
-func weightedChoice(weights []float64) int {
-	// Calculate cumulative sum
-	cumsum := make([]float64, len(weights))
-
-	cumsum[0] = weights[0]
-	for i := 1; i < len(weights); i++ {
-		cumsum[i] = cumsum[i-1] + weights[i]
-	}
-
-	// Generate random value in [0, total)
-	total := cumsum[len(cumsum)-1]
-	if total <= 0 {
-		// Handle edge case: all weights are zero or negative
-		return 0
-	}
-
-	r := rng.Float64() * total
-
-	// Binary search or linear scan to find selected index
-	for i, cs := range cumsum {
-		if r < cs {
-			return i
-		}
-	}
-
-	return len(weights) - 1
-}
-
-// ============================================================================
-// Section 13.5: Sampling
+//  Inference / Sampling
 // ============================================================================
 
 // sample generates a single sample from the model.
@@ -878,4 +704,210 @@ func sample(temperature float64, maxLen int, uchars []rune, BOS, _ int, stateDic
 	}
 
 	return result.String()
+}
+
+// ----------------------------------------------------------------------------
+//  Weighted Random Sampling
+// ----------------------------------------------------------------------------
+
+// weightedChoice selects an index based on weights (normalized probabilities).
+func weightedChoice(weights []float64) int {
+	// Calculate cumulative sum
+	cumsum := make([]float64, len(weights))
+
+	cumsum[0] = weights[0]
+	for i := 1; i < len(weights); i++ {
+		cumsum[i] = cumsum[i-1] + weights[i]
+	}
+
+	// Generate random value in [0, total)
+	total := cumsum[len(cumsum)-1]
+	if total <= 0 {
+		// Handle edge case: all weights are zero or negative
+		return 0
+	}
+
+	r := rng.Float64() * total
+
+	// Binary search or linear scan to find selected index
+	for i, cs := range cumsum {
+		if r < cs {
+			return i
+		}
+	}
+
+	return len(weights) - 1
+}
+
+// ============================================================================
+//  Dataset & Tokenization
+// ============================================================================
+
+// downloadDataset downloads the dataset from a URL if it doesn't exist locally.
+func downloadDataset(url, filename string) error {
+	if _, err := os.Stat(filename); err == nil {
+		// File already exists
+		return nil
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = resp.Body.Close() // Ignore close error in defer
+	}()
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = file.Close() // Ignore close error in defer
+	}()
+
+	_, err = io.Copy(file, resp.Body)
+
+	return err
+}
+
+// loadDocs reads all lines from a file, strips whitespace, and returns non-empty lines.
+func loadDocs(filename string) ([]string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	var docs []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			docs = append(docs, line)
+		}
+	}
+
+	return docs, nil
+}
+
+// shuffleDocs shuffles documents in-place using the global RNG.
+func shuffleDocs(docs []string) {
+	rng.Shuffle(len(docs), func(i, j int) {
+		docs[i], docs[j] = docs[j], docs[i]
+	})
+}
+
+// encode converts a string to token IDs using a precomputed vocab index.
+func encode(doc string, vocabIndex map[rune]int) []int {
+	tokens := make([]int, len(doc))
+	for i, ch := range doc {
+		index, ok := vocabIndex[ch]
+		if !ok {
+			panic(fmt.Sprintf("character %c not in vocabulary", ch))
+		}
+
+		tokens[i] = index
+	}
+
+	return tokens
+}
+
+// decode converts token IDs back to a string, skipping BOS tokens.
+func decode(tokens []int, uchars []rune, BOS int) string {
+	var result strings.Builder
+
+	for _, tokenID := range tokens {
+		if tokenID != BOS && tokenID < len(uchars) {
+			result.WriteRune(uchars[tokenID])
+		}
+	}
+
+	return result.String()
+}
+
+// ============================================================================
+//  Initialization Helpers
+// ============================================================================
+
+// initRNG initializes the global random number generator with a seed.
+func initRNG(seed int64) {
+	source := rand.NewSource(seed)
+	rng = rand.New(source)
+}
+
+// buildVocab extracts unique characters from docs, sorts them, and returns:
+// uchars (sorted unique characters), BOS (special token ID), vocabSize (total tokens).
+func buildVocab(docs []string) ([]rune, int, int) {
+	// Collect all unique characters
+	charSet := make(map[rune]bool)
+
+	for _, doc := range docs {
+		for _, ch := range doc {
+			charSet[ch] = true
+		}
+	}
+
+	// Convert to sorted slice
+	uchars := make([]rune, 0, len(charSet))
+	for ch := range charSet {
+		uchars = append(uchars, ch)
+	}
+
+	slices.Sort(uchars)
+
+	BOS := len(uchars) // uchars = 'a', 'b',... 'z' = 25, BOS ID = 25+1 = 26
+	vocabSize := len(uchars) + 1
+
+	return uchars, BOS, vocabSize
+}
+
+// buildVocabIndex builds a rune->index map for fast token lookup.
+func buildVocabIndex(uchars []rune) map[rune]int {
+	index := make(map[rune]int, len(uchars))
+	for i, ch := range uchars {
+		index[ch] = i
+	}
+
+	return index
+}
+
+// matrix creates a matrix of shape [nOut, nIn] initialized with Normal(0, std).
+func matrix(nOut, nIn int, std float64) [][]*Value {
+	mat := make([][]*Value, nOut)
+	for i := range mat {
+		mat[i] = make([]*Value, nIn)
+		for j := range mat[i] {
+			// rng.NormFloat64() returns standard normal; multiply by std.
+			// Note: Go and Python use different Gaussian generators, so exact weights differ.
+			mat[i][j] = newValue(rng.NormFloat64()*std, nil, nil)
+		}
+	}
+
+	return mat
+}
+
+// flattenParams extracts all parameters from stateDict into a single flat list.
+func flattenParams(stateDict StateDict) []*Value {
+	var params []*Value
+
+	keys := make([]string, 0, len(stateDict))
+	for key := range stateDict {
+		keys = append(keys, key)
+	}
+
+	// Use deterministic key order to keep optimizer buffers stable across runs.
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		mat := stateDict[key]
+		for _, row := range mat {
+			params = append(params, row...)
+		}
+	}
+
+	return params
 }
