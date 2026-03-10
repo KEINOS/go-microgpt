@@ -1,6 +1,6 @@
 # go-microgpt
 
-A Go port of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal GPT implementation to learn transformer internals.
+[go-microgpt](https://github.com/KEINOS/go-microgpt/blob/main/microgpt.go) is a Go port of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal GPT implementation to learn transformer internals.
 
 Pure Go, no external dependencies, single-file implementation.
 
