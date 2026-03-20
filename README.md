@@ -20,24 +20,38 @@ Built for learning—a faithful 1:1 port to understand GPT internals. As the ori
 
 ## Quick Start
 
-Run directly:
+- Requirements: Go 1.22+
 
-```shellsession
-% go run ./microgpt
-```
+- Run directly:
 
-Build and run:
+  ```shellsession
+  % # Local run
+  % go run ./microgpt
+  ```
 
-```shellsession
-% go build -o microgpt ./microgpt
-% ./microgpt
-```
+  ```shellsession
+  % # Docker run
+  % docker run --rm -v "$(pwd)":/test -w /test golang:1.22-alpine go run ./microgpt.go
+  ```
 
-Run tests:
+- Build and run:
 
-```shellsession
-% go test ./microgpt -v -race
-```
+  ```shellsession
+  % go build -o microgpt ./microgpt
+  % ./microgpt
+  ```
+
+- Run tests:
+
+  ```shellsession
+  % # Local run
+  % go test ./microgpt -v -race
+  ```
+
+  ```shellsession
+  % # Docker run
+  % docker run --rm -v "$(pwd)":/test -w /test golang:1.22-alpine go test -v ./...
+  ```
 
 ## Configure
 
