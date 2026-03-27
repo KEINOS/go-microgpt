@@ -267,10 +267,12 @@ func newStateDict(vocabSize int) StateDict {
 	sd["wte"] = matrix(vocabSize, nEmbd, initStd) // token embeddings
 	sd["wpe"] = matrix(blockSize, nEmbd, initStd) // position embeddings
 
+	// Output logits projection.
+	//
 	// Note: Modern GPTs use weight tying (lm_head = wte.T) to reduce parameters
 	// and improve performance, but this implementation keeps them separate to
-	// match the Python reference (microgpt.py) for educational clarity and 1:1 parity.
-	sd["lm_head"] = matrix(vocabSize, nEmbd, initStd) // output logits projection
+	// match the Python reference (microgpt.py) for 1:1 parity.
+	sd["lm_head"] = matrix(vocabSize, nEmbd, initStd)
 
 	// Transformer layers
 	for i := range nLayer {

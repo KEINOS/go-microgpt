@@ -1,15 +1,16 @@
 # go-microgpt
 
-[go-microgpt](https://github.com/KEINOS/go-microgpt/blob/main/microgpt.go) is a Go port of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal GPT implementation to learn transformer internals.
+[microgpt.go](https://github.com/KEINOS/go-microgpt/blob/main/microgpt.go) is a Go port of [Andrej Karpathy](https://karpathy.ai/)'s [microgpt.py](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95) — a minimal GPT-2 you can read end-to-end in a single file. No frameworks, no abstractions — just the core mechanics.
 
-Pure Go, no external dependencies, single-file implementation.
+Pure Go. Fully self-contained. Single-file implementation.
 
-Built for learning—a faithful 1:1 port to understand GPT internals. As the original implementation says, this project is not optimized for efficiency.
+> [!NOTE]
+> Built for learning: a structurally faithful (almost 1:1) port of `microgpt.py` to understand GPT internals. As the original implementation says, this project is not optimized for efficiency.
 
 **What this project covers:**
 
 - Automatic differentiation (backpropagation through a computation graph)
-- Multi-head attention and transformer blocks
+- Causal multi-head self-attention and transformer blocks
 - Adam optimizer with learning rate scheduling
 - Training and inference loops for sequence models
 
@@ -21,17 +22,45 @@ Built for learning—a faithful 1:1 port to understand GPT internals. As the ori
 ## Quick Start
 
 - Requirements: Go 1.22+
+- Clone the repo or download [microgpt.go](https://raw.githubusercontent.com/KEINOS/go-microgpt/refs/heads/main/microgpt.go) and run:
 
-- Run directly:
+```shellsession
+% # Local run
+% go run ./microgpt.go
+num docs: 32033
+vocab size: 27
+num params: 4192
+step 1000 / 1000 | loss 2.4143
 
-  ```shellsession
-  % # Local run
-  % go run ./microgpt
-  ```
+--- inference (new, hallucinated names) ---
+sample  1: arrien
+sample  2: kale
+sample  3: kavar
+sample  4: janante
+sample  5: delina
+sample  6: aren
+sample  7: mayia
+sample  8: alee
+sample  9: aryan
+sample 10: avavee
+sample 11: adane
+sample 12: alian
+sample 13: amai
+sample 14: erid
+sample 15: eride
+sample 16: avace
+sample 17: lele
+sample 18: arina
+sample 19: jarina
+sample 20: elen
+```
+
+- Docker run:
 
   ```shellsession
   % # Docker run
   % docker run --rm -v "$(pwd)":/test -w /test golang:1.22-alpine go run ./microgpt.go
+  **snip**
   ```
 
 - Build and run:
@@ -39,18 +68,21 @@ Built for learning—a faithful 1:1 port to understand GPT internals. As the ori
   ```shellsession
   % go build -o microgpt ./microgpt
   % ./microgpt
+  **snip**
   ```
 
 - Run tests:
 
   ```shellsession
   % # Local run
-  % go test ./microgpt -v -race
+  % go test .
+  ok  github.com/KEINOS/go-microgpt  0.407s
   ```
 
   ```shellsession
   % # Docker run
-  % docker run --rm -v "$(pwd)":/test -w /test golang:1.22-alpine go test -v ./...
+  % docker run --rm -v "$(pwd)":/test -w /test golang:1.22-alpine go test .
+  ok  github.com/KEINOS/go-microgpt  0.057s
   ```
 
 ## Configure
@@ -64,11 +96,14 @@ const (
     blockSize = 16      // max sequence length per forward pass
     nHead     = 4       // attention heads (must divide nEmbd)
     numSteps  = 1000    // training iterations
-    learningRate = 0.01 // Adam learning rate (0.01 recommended)
+    learningRate = 0.01 // Adam learning rate (0.01 used in original microgpt)
 )
 ```
 
 - Default: ~3,400 parameters.
+
+> [!NOTE]
+> The actual parameter count printed at runtime (e.g. `4192`) includes all learnable weights such as embeddings, attention projections, MLP layers, and RMSNorm scales.
 
 **How each affects training:**
 
@@ -92,33 +127,71 @@ Character-level names dataset from [makemore](https://github.com/karpathy/makemo
 **Included:**
 
 - Autograd system with manual backpropagation
-- Multi-head attention, RMSNorm, feed-forward blocks
+- Causal multi-head self-attention, RMSNorm, feed-forward blocks
 - Adam optimizer with bias correction
 - Autoregressive sampling with temperature scaling
 - Character-level tokenization
 
 **Not included (by design):**
 
-- Batching
+- Batching (kept simple to make execution easy to follow)
 - Dropout/regularization
 - Bias vectors
-- Causal masking
+- Explicit causal masking tensor (causality is enforced by the autoregressive loop)
+
+## Architecture Flow
+
+The following diagram shows the forward-pass structure used in this repository's microgpt implementation.
+
+```mermaid
+flowchart TB
+  IN([Input Token IDs]) --> WTE[Token Embedding\nwte]
+  IN --> WPE[Position Embedding\nwpe]
+  WTE --> ADD0((Add))
+  WPE --> ADD0
+  ADD0 --> N0[RMSNorm after embedding sum]
+
+  N0 --> BLK
+
+  subgraph BLK[Transformer Block x N]
+    direction TB
+    N1[RMSNorm] --> ATTN[Multi-Head Self-Attention]
+    ATTN --> ADD1((Add Residual))
+    ADD1 --> N2[RMSNorm]
+    N2 --> MLP[MLP: Linear -> ReLU -> Linear]
+    MLP --> ADD2((Add Residual))
+  end
+
+  ADD2 --> HEAD[Linear Projection\nlm_head]
+  HEAD --> LOGITS([Logits])
+  LOGITS --> SMX[Softmax when needed]
+  SMX --> OUT([Token Probabilities])
+```
+
+> [!NOTE]
+> Causality in "Multi-Head Self-Attention" is enforced by the autoregressive loop: no future tokens are ever computed, so no explicit attention mask is required in this implementation.
+>
+> - For more detailed comparison, see [gpt2-vs-microgpt.md](gpt2-vs-microgpt.md).
 
 ## Speed
 
 This section is for reference only.
 
-Even though this Go port runs ~9× faster than Python (due to compiled vs interpreted execution), we focus on faithfully reproducing the original code for learning, not optimizing performance.
+Even though this Go port runs ~9× faster than Python and can be further optimized, **performance is not the goal of this project**. Clarity and structural faithfulness is prioritized over all.
 
 ```shellsession
-% hyperfine "python3 ./ref/microgpt.py" "./microgpt"
+% hyperfine "python3 ./ref/microgpt.py" "go run ./microgpt.go"
 Benchmark 1: python3 ./ref/microgpt.py
-  Time (mean ± σ):     54.546 s ±  0.931 s
+  Time (mean ± σ):     56.617 s ±  0.920 s    [User: 56.000 s, System: 0.499 s]
+  Range (min … max):   55.537 s … 58.715 s    10 runs
 
-Benchmark 2: ./microgpt
-  Time (mean ± σ):      5.928 s ±  0.165 s
+Benchmark 2: go run ./microgpt.go
+  Time (mean ± σ):      6.031 s ±  0.081 s    [User: 12.485 s, System: 1.024 s]
+  Range (min … max):    5.909 s …  6.135 s    10 runs
 
-Summary: ./microgpt runs 9.20× faster
+Summary
+  go run ./microgpt.go ran
+    9.39 ± 0.20 times faster than python3 ./ref/microgpt.py
 ```
 
 ## References
