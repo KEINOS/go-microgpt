@@ -103,7 +103,7 @@ const (
 - Default: ~3,400 parameters.
 
 > [!NOTE]
-> The actual parameter count printed at runtime (e.g. `4192`) includes all learnable weights such as embeddings, attention projections, and MLP layers. In this implementation, RMSNorm is parameter-free (no learnable gamma scale).
+> The actual parameter count printed at runtime (e.g. `4192`) includes all learnable weights such as embeddings, attention projections, and MLP layers. In this implementation, RMSNorm is parameter-free (no learnable gamma scale parameter).
 
 **How each affects training:**
 

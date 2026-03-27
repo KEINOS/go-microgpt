@@ -97,7 +97,7 @@ RMSNorm is used instead of LayerNorm. It avoids mean-centering and is easier to 
 
 Important implementation detail:
 
-- In `ref/microgpt.py` and `microgpt.go`, RMSNorm is parameter-free (no learnable gamma scale), by design.
+- In `ref/microgpt.py` and `microgpt.go`, RMSNorm is parameter-free (no learnable gamma scale parameter), by design.
 
 ### 2) GELU -> ReLU
 
@@ -158,7 +158,7 @@ From `microgpt.go` and `README.md`:
 | Model family | Decoder-only Transformer | Decoder-only Transformer |
 | Block structure | Attention + MLP with residuals | Attention + MLP with residuals |
 | Normalization type | LayerNorm | RMSNorm |
-| Learnable norm scale | Yes (LayerNorm gamma/beta) | No (parameter-free RMSNorm in current code) |
+| Learnable norm scale | Yes (LayerNorm gamma/beta) | No (parameter-free RMSNorm, no learnable gamma scale parameter) |
 | Norm after embedding sum | No | Yes |
 | MLP activation | GELU | ReLU |
 | Dropout | Used in training | Omitted |

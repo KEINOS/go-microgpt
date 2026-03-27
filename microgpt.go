@@ -445,9 +445,9 @@ func softmax(logits []*Value) []*Value {
 
 // rmsnorm computes root-mean-square normalization.
 //
-// Note: Standard RMSNorm includes a learnable scale parameter (γ/gamma) that
-// scales the normalized output. But for educational clarity, it omits this
-// parameter to match the original implementation in microgpt.py.
+// Note: Standard RMSNorm includes a learnable gamma scale parameter that
+// scales the normalized output. This implementation uses parameter-free
+// RMSNorm for educational clarity to match the original microgpt.py.
 func rmsnorm(x []*Value) []*Value {
 	// ms = sum(xi * xi) / len(x)
 	sumSq := newValue(0, nil, nil)
