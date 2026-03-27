@@ -1,56 +1,39 @@
 # GPT-2 Core and microgpt Simplifications
 
-This note organizes two points while mapping canonical GPT-2 to `microgpt.py`:
+This note compares canonical GPT-2 with the microgpt implementation used in this repository, based on:
 
-1. What this repository treats as the GPT-2 core path.
-2. What `microgpt.py` simplifies in the Python version.
+1. `ref/microgpt.py` (Python reference)
+2. `microgpt.go` (Go port in this repository)
+3. `README.md` (project-level architecture notes)
 
-## Why this comparison matters
+The goal is to separate what stays structurally GPT-2-like from what is intentionally simplified for learning.
 
-`microgpt.py` is not a different model family. It keeps the decoder-only Transformer core from GPT-2. The main difference is that it removes or replaces parts that add complexity but are not central to this structural mapping.
+## Scope and baseline
 
-In this note, the core path comes first, then the simplifications. This order makes the mapping from canonical GPT-2 to `microgpt.py` easier to track and understand for me.
+The baseline in this note is the decoder-only Transformer path:
 
-## GPT-2 core path used in this note
+1. Token + position embeddings are summed.
+2. A stack of Transformer blocks is applied.
+3. Each block performs attention and MLP sublayers with residual connections.
+4. Hidden states are projected to vocabulary logits.
+5. Softmax is applied outside the core forward path (loss/sampling stage).
 
-This is the minimum GPT-2 core path used in this comparison:
-
-1. Look up token and position embeddings and add them to form the input vectors.
-2. Run a stack of Transformer blocks (implemented as a loop).
-3. In each block:
-    1. Attention + add input back (residual connection)
-        - Run self-attention, then add its output to the original input of that sublayer (residual connection).
-    2. MLP + add input back (residual connection)
-        - Run Multi-Layer Perceptron (MLP), then add its output to the original input of that sublayer (residual connection).
-4. Apply a linear layer to map hidden states to vocabulary logits.
-5. Apply softmax outside the core forward pass when computing loss or during sampling.
-
-Forward flow in this note:
-
-- Input IDs -> Embeddings -> Stacked Blocks -> Logits
-
-(Expressed in pre-normalization form for consistency across implementations.)
-
-Inside each stacked block:
-
-- Normalize input -> Self-Attention -> Add input back (residual connection) -> Normalize input -> MLP -> Add input back (residual connection)
+In pre-norm form:
 
 ```go
 x = x + SelfAttention(Norm(x))
 x = x + MLP(Norm(x))
 ```
 
-(This corresponds to one iteration of a loop over layers.)
-
 ## Canonical GPT-2 (reference shape)
 
-In canonical GPT-2, normalization is LayerNorm, the MLP uses GELU, and there is a final LayerNorm before the language-model head.
+Canonical GPT-2 uses LayerNorm in blocks, GELU in MLP, and a final LayerNorm before `lm_head`.
 
 Abbreviations:
 
 - `wte`: token embedding table
 - `wpe`: positional embedding table
-- `lm_head`: linear projection from hidden state to vocabulary logits
+- `lm_head`: projection from hidden state to vocabulary logits
 
 ```mermaid
 flowchart TB
@@ -63,7 +46,7 @@ flowchart TB
 
     subgraph BLK[Transformer Block x N]
         direction TB
-        LN1[LayerNorm] --> ATTN[Masked Multi-Head Self-Attention]
+        LN1[LayerNorm] --> ATTN[Causal Multi-Head Self-Attention]
         ATTN --> ADD1((Add Residual))
         ADD1 --> LN2[LayerNorm]
         LN2 --> MLP[MLP: Linear -> GELU -> Linear]
@@ -77,9 +60,9 @@ flowchart TB
     SMX --> OUT([Token Probabilities])
 ```
 
-## microgpt.py (simplified shape for structural exploration)
+## microgpt in this repository (Python + Go)
 
-`microgpt.py` keeps the same high-level flow, but simplifies internals.
+Both `ref/microgpt.py` and `microgpt.go` keep the same high-level flow and simplify internals.
 
 ```mermaid
 flowchart TB
@@ -93,7 +76,7 @@ flowchart TB
 
     subgraph BLK[Transformer Block x N]
         direction TB
-        N1[RMSNorm] --> ATTN[Masked Multi-Head Self-Attention]
+        N1[RMSNorm] --> ATTN[Causal MHA via prefix KV cache<br/>no explicit mask tensor]
         ATTN --> ADD1((Add Residual))
         ADD1 --> N2[RMSNorm]
         N2 --> MLP[MLP: Linear -> ReLU -> Linear]
@@ -106,63 +89,91 @@ flowchart TB
     SMX --> OUT([Token Probabilities])
 ```
 
-## Changes in microgpt.py
+## Simplifications used here
 
 ### 1) LayerNorm -> RMSNorm
 
-RMSNorm is simpler to implement in a scalar autograd system. Unlike LayerNorm, it does not include mean-centering.
-In this note, it is handled as a simplification that keeps the same normalization role in block flow.
+RMSNorm is used instead of LayerNorm. It avoids mean-centering and is easier to express in a scalar autograd graph.
+
+Important implementation detail:
+
+- In `ref/microgpt.py` and `microgpt.go`, RMSNorm is parameter-free (no learnable gamma scale), by design.
 
 ### 2) GELU -> ReLU
 
-In `microgpt.py`, ReLU is used as the activation function in the MLP instead of GELU.
-ReLU is simpler than GELU in both forward and backward logic.
-In this minimal codebase, this lowers complexity without changing the overall architecture shape.
+The MLP activation is ReLU instead of GELU. This simplifies forward/backward computation while keeping block topology unchanged.
 
 ### 3) Bias terms removed
 
-Linear layers do not include bias parameters. This reduces parameter count and simplifies parameter initialization and updates.
+Linear layers are implemented without bias vectors.
 
 ### 4) Extra norm after embedding sum
 
-`microgpt.py` applies RMSNorm immediately after adding token and position embeddings. This stabilizes the scale of the combined embeddings before entering the first block.
+An RMSNorm is applied immediately after `wte + wpe`, before entering the first block.
 
 ### 5) No final norm before `lm_head`
 
-Canonical GPT-2 uses a final LayerNorm before output projection. `microgpt.py` skips this and projects directly to logits.
+Unlike canonical GPT-2, this implementation projects to logits directly after the last block.
 
-## Implementation view for Go
+### 6) Causality via autoregressive prefix, not explicit mask tensor
 
-In implementation terms, the forward pass follows the same conceptual pipeline as GPT-2: compute embeddings, run stacked blocks, and output logits.
+This implementation enforces causality by incremental prefix K/V accumulation (no explicit mask tensor). As a trade-off, it currently uses token-by-token forward passes instead of full-sequence parallel attention with masking.
 
-The simplifications mostly reduce graph and parameter complexity:
+#### Causal Masking in Attention
 
-1. Fewer parameter types to manage because there are no bias vectors.
-2. Simpler activation and normalization math for autograd nodes.
-3. Causality is enforced by storing and using only past keys and values, so an explicit mask tensor can be avoided in this minimal setup.
+Both canonical GPT-2 and microgpt share the same core scaled dot-product attention computation.
 
-This keeps autoregressive behavior and makes the implementation easier to inspect.
+The key difference lies in how causality is enforced:
+
+- **Canonical GPT-2**:
+  - Uses an **explicit causal mask** (lower triangular matrix).
+  - Full sequences are processed in parallel during training, with future tokens masked by setting their attention scores to `-∞` before softmax.
+- **microgpt (this implementation)**:
+  - Does **not** use an explicit mask tensor at all.
+  - Instead, causality is enforced implicitly through **incremental K/V accumulation** in a prefix cache - only past keys and values are stored and visible to the model.
+  - Since tokens are processed one-by-one during both training and inference, future tokens are never fed into the attention mechanism.
+
+This design significantly simplifies the attention code and makes the forward pass easier to follow, though it relies on token-by-token execution rather than batched full-sequence attention with masking.
+
+### 7) No dropout regularization
+
+Dropout is intentionally omitted for simplicity.
+
+### 8) Separate `wte` and `lm_head` weights
+
+`microgpt.go` keeps `wte` and `lm_head` as separate matrices to stay faithful to the Python reference in this repository.
+
+## Implementation notes for the Go port
+
+From `microgpt.go` and `README.md`:
+
+1. The architecture is a direct educational port, prioritizing readability and structural faithfulness over efficiency.
+2. Training and inference are both autoregressive, using token-by-token forward calls with incremental K/V accumulation.
+3. Softmax remains outside the core block pipeline (cross-entropy in training, temperature sampling in inference).
 
 ## Quick comparison table
 
-| Aspect | Canonical GPT-2 | `microgpt.py` |
+| Aspect | Canonical GPT-2 | microgpt in this repository |
 | :--- | :--- | :--- |
 | Model family | Decoder-only Transformer | Decoder-only Transformer |
 | Block structure | Attention + MLP with residuals | Attention + MLP with residuals |
 | Normalization type | LayerNorm | RMSNorm |
+| Learnable norm scale | Yes (LayerNorm gamma/beta) | No (parameter-free RMSNorm in current code) |
 | Norm after embedding sum | No | Yes |
 | MLP activation | GELU | ReLU |
-| Dropout regularization | Yes | No |
-| Linear bias terms | Yes | No |
+| Dropout | Used in training | Omitted |
+| Linear bias terms | Used | Omitted |
 | Final norm before `lm_head` | Yes | No |
+| Causal masking | Explicit causal masking in attention logic | No explicit mask tensor (incremental prefix K/V cache) |
+| `wte`/`lm_head` weight tying | Implementation-dependent across GPT-2 codebases | Not tied (separate matrices) |
 | Output of forward pass | Logits | Logits |
 | Softmax usage | Outside core path | Outside core path |
 
 ## Closing note
 
-This comparison can be read in two layers:
+The structural takeaway is:
 
-1. Keep the GPT-2 core execution path.
-2. Treat simplifications as math-level changes, not topology changes.
+1. Keep the GPT-2 decoder-only execution path.
+2. Apply simplifications that reduce autograd and implementation complexity.
 
-With that boundary, `microgpt.py` works as a compact structural map from canonical GPT-2 to a concrete implementation.
+With this boundary, `ref/microgpt.py` and `microgpt.go` are compact, inspectable maps of GPT-style modeling logic for learning.

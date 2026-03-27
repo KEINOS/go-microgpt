@@ -5,7 +5,7 @@
 Pure Go. Fully self-contained. Single-file implementation.
 
 > [!NOTE]
-> Built for learning: a structurally faithful (almost 1:1) port of `microgpt.py` to understand GPT internals. As the original implementation says, this project is not optimized for efficiency.
+> Built for learning: a structurally faithful (almost 1:1) port of `microgpt.py` to understand GPT internals. As the original implementation says, this project prioritizes clarity and learnability over efficiency.
 
 **What this project covers:**
 
@@ -87,7 +87,7 @@ sample 20: elen
 
 ## Configure
 
-Edit constants in `microgpt/microgpt.go`:
+Edit constants in `microgpt.go`:
 
 ```go
 const (
@@ -103,7 +103,7 @@ const (
 - Default: ~3,400 parameters.
 
 > [!NOTE]
-> The actual parameter count printed at runtime (e.g. `4192`) includes all learnable weights such as embeddings, attention projections, MLP layers, and RMSNorm scales.
+> The actual parameter count printed at runtime (e.g. `4192`) includes all learnable weights such as embeddings, attention projections, and MLP layers. In this implementation, RMSNorm is parameter-free (no learnable gamma scale).
 
 **How each affects training:**
 
