@@ -121,19 +121,68 @@ This implementation enforces causality by incremental prefix K/V accumulation (n
 
 #### Causal Masking in Attention
 
-Both canonical GPT-2 and microgpt share the same core scaled dot-product attention computation.
+Both canonical GPT-2 and microgpt share almost the same **Multi-Head Self-Attention** mechanism at the computational level.
+The core computation (QKV projection → scaled dot-product → softmax → weighted sum of Values) is identical.
 
-The key difference lies in how causality is enforced:
+The only major difference is **how they prevent the model from seeing future tokens** (causality).
 
-- **Canonical GPT-2**:
-  - Uses an **explicit causal mask** (lower triangular matrix).
-  - Full sequences are processed in parallel during training, with future tokens masked by setting their attention scores to `-∞` before softmax.
-- **microgpt (this implementation)**:
-  - Does **not** use an explicit mask tensor at all.
-  - Instead, causality is enforced implicitly through **incremental K/V accumulation** in a prefix cache - only past keys and values are stored and visible to the model.
-  - Since tokens are processed one-by-one during both training and inference, future tokens are never fed into the attention mechanism.
+##### Common Attention Flow (both implementations)
+
+```mermaid
+flowchart TB
+    Input["RMSNorm(x)"] --> QKV[Q, K, V Projections]
+    QKV --> Split[Split into Multiple Heads]
+    Split --> Scores["Scaled Dot-Product<br/>Q · K^T / sqrt(head_dim)"]
+    Scores --> Softmax[Softmax → Attention Weights]
+    Softmax --> Weighted[Weighted Sum of V]
+    Weighted --> Concat[Concatenate Heads]
+    Concat --> Output[Output Projection<br/>attn_wo]
+    Output --> Residual[Add Residual Connection]
+```
+
+##### 1. Canonical GPT-2: Explicit Causal Mask
+
+In standard GPT-2, the full sequence is processed in parallel.
+To prevent attending to future tokens, an **explicit causal mask** is applied.
+
+```mermaid
+flowchart TB
+    Scores["Scores = Q · K^T / sqrt(head_dim)"] --> Mask["Apply Causal Mask<br/>future positions = -∞"]
+    Mask --> Softmax[Softmax]
+    Softmax --> Output[Weighted Sum of V]
+```
+
+- Future token positions are masked by setting their scores to `-∞` before softmax, making their attention weights effectively zero.
+- This is the classic approach used in most Transformer implementations.
+
+##### 2. microgpt: Implicit Causality via Incremental K/V Accumulation
+
+In microgpt, tokens are processed **one by one** during both training and inference.
+For each position `t`:
+
+- Compute Q, K, V for the current token.
+- Append the current K and V to the prefix cache.
+- Compute attention scores using the updated cache (all tokens 0 to t).
+
+```mermaid
+flowchart TB
+    Current[Current Token t] --> QKV[Compute Q, K, V]
+    QKV --> Append[Append K and V to Cache]
+    Append --> Cache[Prefix K/V Cache<br/>tokens 0 … t]
+    QKV -->|Q| Scores["Scores = Q · K^T / sqrt(head_dim)"]
+    Cache -->|all K up to t| Scores
+    Scores --> Softmax[Softmax]
+    Softmax -->|weights| Output[Weighted Sum of V]
+    Cache -->|all V up to t| Output
+```
+
+- No explicit causal mask tensor is needed.
+- Causality is enforced **structurally** by the token-by-token execution order: tokens at positions `t+1, t+2, ...` have not been computed yet, so they cannot appear in the cache and cannot be attended to.
+- The current token (position `t`) can attend to itself, which matches standard causal attention semantics.
 
 This design significantly simplifies the attention code and makes the forward pass easier to follow, though it relies on token-by-token execution rather than batched full-sequence attention with masking.
+
+This is one of the key simplifications that makes microgpt easy to understand and suitable for learning GPT internals.
 
 ### 7) No dropout regularization
 
